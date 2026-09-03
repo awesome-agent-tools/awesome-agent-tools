@@ -135,4 +135,5 @@ original.
 
 ## Licence
 
-Data is CC BY 4.0 — quote the numbers, cite the source. Code is MIT.
+MIT, code and data alike. Quoting a number is the point — when you do, name the
+protocol version and the run date alongside it, or it cannot be interpreted.
