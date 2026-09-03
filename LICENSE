@@ -1,27 +1,6 @@
-This repository is licensed in two parts.
-
-================================================================================
-DATA — everything under data/, content/ and docs/research/
-================================================================================
-
-Creative Commons Attribution 4.0 International (CC BY 4.0)
-https://creativecommons.org/licenses/by/4.0/
-
-You may share and adapt this material for any purpose, including commercially,
-provided you give appropriate credit and indicate if changes were made.
-
-Attribution is the point rather than a formality: the numbers here exist so
-that they can be quoted. If you cite one, name the protocol version and the run
-date alongside it — a figure without those is not interpretable, and quoting it
-bare does your readers no favours.
-
-================================================================================
-CODE — everything under src/ and scripts/
-================================================================================
-
 MIT License
 
-Copyright (c) 2026 awesome-agent-tools contributors
+Copyright (c) 2026 awesome-agent-tools
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
