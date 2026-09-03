@@ -14,7 +14,7 @@ export const GET: APIRoute = () => {
   const body = {
     generated_at: new Date().toISOString(),
     license: "CC BY 4.0",
-    source: "https://github.com/xiaoyuanzhu-com/awesome-agent-tools",
+    source: "https://github.com/awesome-agent-tools/awesome-agent-tools",
     note: "Every observation carries where it was read from. An observation with status 'unverified' was not confirmed; 'not-applicable' means the question does not apply to that implementation.",
     capabilities: db.capabilities,
     observation_keys: db.observationKeys,
