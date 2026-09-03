@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>awesome-agent-tools · v5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sans:"Inter",-apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ink:#0B0C0E; --body:#3B3F45; --mute:#74787E; --faint:#9BA0A6; --ghost:#C4C7CB;
+  --line:#E6E7E9; --line2:#F1F1F2; --bg:#FCFCFD; --panel:#F6F6F7;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}
+.tnum{font-variant-numeric:tabular-nums}
+
+#poc{position:sticky;top:0;z-index:200;display:flex;align-items:center;gap:6px;
+  background:#0B0C0E;padding:0 14px;height:36px;color:#8A8F98;font-size:11.5px}
+#poc b{color:#fff;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;margin-right:4px}
+#poc button{background:none;border:0;color:#8A8F98;font:inherit;padding:4px 10px;border-radius:99px;cursor:pointer}
+#poc button.on{background:#22252B;color:#fff}
+#poc .n{margin-left:auto;color:#5C6169}
+
+.bd{max-width:1060px;margin:0 auto;padding:0 36px}
+
+/* ---------- nav = 数据模型的轴 ---------- */
+.top{border-bottom:1px solid var(--line);background:rgba(252,252,253,.92);backdrop-filter:blur(10px);
+  position:sticky;top:36px;z-index:100}
+.top .in{display:flex;align-items:center;height:56px;gap:34px}
+.logo{font-size:14.5px;font-weight:650;letter-spacing:-.02em;white-space:nowrap}
+.logo i{font-style:normal;color:var(--ghost)}
+.nav{display:flex;gap:24px}
+.nav a{display:flex;align-items:baseline;gap:5px;font-size:13.5px;color:var(--body);white-space:nowrap;
+  padding:2px 0;border-bottom:1.5px solid transparent}
+.nav a em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--ghost);
+  font-variant-numeric:tabular-nums}
+.nav a:hover{color:var(--ink)}
+.nav a.on{color:var(--ink);font-weight:550;border-bottom-color:var(--ink)}
+.top .end{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+/* ---------- 1 · search ---------- */
+.hero{padding:92px 0 78px;text-align:center;border-bottom:1px solid var(--line)}
+.hero h1{font-size:42px;line-height:1.12;letter-spacing:-.036em;font-weight:620;margin:0 0 30px}
+.search{max-width:600px;margin:0 auto;position:relative}
+.search input{width:100%;height:54px;border:1px solid var(--line);border-radius:11px;background:#fff;
+  padding:0 96px 0 46px;font:inherit;font-size:15.5px;color:var(--ink);outline:none;
+  box-shadow:0 1px 2px rgba(11,12,14,.03);transition:.15s}
+.search input::placeholder{color:var(--faint)}
+.search input:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(11,12,14,.05)}
+.search svg{position:absolute;left:17px;top:18px;stroke:var(--faint)}
+.search .k{position:absolute;right:14px;top:16px;display:flex;gap:4px}
+.search .k span{font-family:var(--mono);font-size:11px;color:var(--faint);border:1px solid var(--line);
+  border-radius:5px;padding:2px 6px;background:var(--panel)}
+.chips{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.chips a{font-size:13px;color:var(--mute);border:1px solid var(--line);border-radius:99px;
+  padding:5px 13px;background:#fff}
+.chips a:hover{border-color:var(--ink);color:var(--ink)}
+
+/* ---------- 2 · cards ---------- */
+.sech{display:flex;align-items:baseline;gap:14px;padding:50px 0 16px}
+.sech h2{font-size:11.5px;font-weight:650;letter-spacing:.13em;text-transform:uppercase;margin:0}
+.sech .rule{flex:1;height:1px;background:var(--line)}
+.sech a{font-size:12.5px;color:var(--mute)}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;display:flex;
+  flex-direction:column;transition:.15s}
+.card:hover{border-color:var(--ghost);transform:translateY(-1px);box-shadow:0 4px 14px rgba(11,12,14,.045)}
+.card .vis{background:var(--panel);border-bottom:1px solid var(--line2);padding:18px 20px;min-height:134px;
+  display:flex;flex-direction:column;justify-content:center}
+.card .txt{padding:15px 20px 17px;flex:1}
+.card .kind{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);
+  font-weight:650;margin-bottom:8px}
+.card h3{font-size:16.5px;line-height:1.35;letter-spacing:-.019em;font-weight:580;margin:0 0 7px}
+.card p{font-size:13.5px;line-height:1.6;color:var(--mute);margin:0}
+.card .foot{margin-top:11px;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.card.wide{grid-column:span 2}
+.card.wide .vis{min-height:172px}
+.card.wide h3{font-size:21px;letter-spacing:-.024em;font-weight:600}
+.card.wide p{font-size:14.5px;color:var(--body)}
+
+.bars{display:flex;flex-direction:column;gap:6px;width:100%}
+.bars .row{display:flex;align-items:center;gap:10px;font-size:11px}
+.bars .row .l{width:136px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.bars .row .t{flex:1;height:11px;background:#E9EAEB;border-radius:2px;overflow:hidden}
+.bars .row .t i{display:block;height:100%;background:var(--ghost);border-radius:2px}
+.bars .row.on .l{color:var(--ink);font-weight:550}
+.bars .row.on .t i{background:var(--ink)}
+.bars .row .v{font-family:var(--mono);font-size:10.5px;color:var(--mute);width:36px;text-align:right}
+
+.code{font-family:var(--mono);font-size:11px;line-height:1.95;width:100%}
+.code div{display:grid;grid-template-columns:112px 1fr;gap:8px}
+.code div .k{color:var(--faint);text-align:right}
+.code div .v{color:var(--ink);white-space:pre;overflow:hidden}
+.code div .v u{text-decoration:none;background:#E4E5E7;padding:1px 2px;border-radius:2px}
+.code div.off .v{color:var(--faint)}
+
+.ratio{display:flex;align-items:center;gap:16px}
+.ratio .big{font-family:var(--mono);font-size:38px;font-weight:500;letter-spacing:-.04em;line-height:1}
+.ratio .sq{display:grid;grid-template-columns:repeat(3,14px);gap:5px}
+.ratio .sq i{width:14px;height:14px;border-radius:3px;border:1px solid var(--ghost);display:block}
+.ratio .sq i.f{background:var(--ink);border-color:var(--ink)}
+
+.chg{display:flex;align-items:center;gap:14px;font-family:var(--mono)}
+.chg .o{font-size:23px;color:var(--faint);text-decoration:line-through}
+.chg .a{font-size:33px;font-weight:500;letter-spacing:-.03em}
+.chg .arw{color:var(--ghost);font-size:17px}
+
+/* adoption ranking */
+.rank{width:100%;display:flex;flex-direction:column;gap:8px}
+.rank .r{display:flex;align-items:center;gap:9px;font-size:11.5px}
+.rank .r .n{width:118px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank .r .d{display:flex;gap:3px;flex:1}
+.rank .r .d i{width:7px;height:7px;border-radius:50%;background:#DEDFE1}
+.rank .r .d i.f{background:var(--ink)}
+.rank .r .c{font-family:var(--mono);font-size:10.5px;color:var(--mute);width:26px;text-align:right}
+
+/* coverage matrix */
+.mx{width:100%;font-size:10px}
+.mx .hdr{display:grid;grid-template-columns:96px 1fr;gap:8px;margin-bottom:6px;color:var(--faint)}
+.mx .hdr .a{font-family:var(--mono);letter-spacing:.02em}
+.mx .rw{display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:center;margin-bottom:4px}
+.mx .rw .l{color:var(--mute);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mx .rw .c{display:grid;grid-template-columns:repeat(13,1fr);gap:3px}
+.mx .rw .c i{height:11px;border-radius:2px;background:#E4E5E7}
+.mx .rw .c i.f{background:var(--ink)}
+.mx .rw .c i.p{background:var(--ghost)}
+
+footer{margin-top:60px;padding:20px 0 56px;border-top:1px solid var(--line);
+  display:flex;gap:22px;font-size:12.5px;color:var(--mute)}
+footer .r{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+/* ---------- capability page ---------- */
+.cap{padding:44px 0 0}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:14px}
+.cap h1{font-size:38px;line-height:1.12;letter-spacing:-.032em;font-weight:620;margin:0 0 34px;max-width:16em}
+.verdict{border-top:2px solid var(--ink);padding-top:19px}
+.verdict .l{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:9px}
+.verdict .p{font-size:30px;font-weight:620;letter-spacing:-.028em;margin-bottom:9px}
+.verdict .r{font-size:16px;line-height:1.62;color:var(--body);max-width:31em}
+.exc{margin:20px 0 46px}
+.exc div{display:flex;gap:18px;padding:11px 0;border-top:1px solid var(--line2);font-size:14.5px}
+.exc div .i{color:var(--mute);flex:1}
+.exc div .t{font-weight:550}
+.kpi{display:flex;gap:54px;flex-wrap:wrap;padding:24px 0 6px;border-top:1px solid var(--line)}
+.kpi div .n{font-size:36px;font-weight:600;letter-spacing:-.035em;font-family:var(--mono)}
+.kpi div .l{font-size:12.5px;color:var(--mute);margin-top:4px;line-height:1.5}
+.method{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin:14px 0 46px}
+.prose{font-size:16px;line-height:1.8;color:var(--body);max-width:32em;margin:0 0 46px}
+table.data{width:100%;border-collapse:collapse;font-size:13.5px}
+table.data th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+  font-weight:650;padding:0 12px 8px 0;border-bottom:1px solid var(--ink);white-space:nowrap}
+table.data td{padding:10px 12px 10px 0;border-bottom:1px solid var(--line2);white-space:nowrap}
+table.data td.nm{font-weight:520}
+table.data td.dim{color:var(--mute)}
+table.data td.num{font-family:var(--mono);font-size:12.5px;text-align:right}
+table.data tr.hi td{background:var(--panel)}
+table.data tr.hi td.nm{box-shadow:inset 2px 0 0 var(--ink);padding-left:10px}
+@media(max-width:920px){.grid{grid-template-columns:1fr}.card.wide{grid-column:span 1}}
+</style>
+</head>
+<body>
+
+<div id="poc"><b>POC</b>
+  <button data-v="home" class="on">首页</button>
+  <button data-v="cap">品类页</button>
+  <span class="n">导航＝数据模型的轴 · 卡片＝数据库查询结果</span>
+</div>
+
+<div id="v-home"></div>
+<div id="v-cap" style="display:none"></div>
+
+<script>
+const NAV=(on)=>`<div class="top"><div class="bd"><div class="in">
+ <a class="logo" href="#">awesome<i>·</i>agent<i>·</i>tools</a>
+ <nav class="nav">
+  <a class="${on==='cap'?'on':''}" href="#">能力 <em>6</em></a>
+  <a href="#">Agents <em>13</em></a>
+  <a href="#">工具 <em>61</em></a>
+  <a href="#">实测 <em>4</em></a>
+  <a href="#">文章 <em>24</em></a>
+ </nav>
+ <div class="end">UPDATED 09-05</div>
+</div></div></div>`;
+
+const bars=[['Chrome DevTools MCP',2700,0],['Playwright MCP',3200,1],['OpenClaw browser',3900,0],
+ ['Browserbase',4800,0],['Stagehand',5100,0],['camoufox-mcp',5600,0],
+ ['OpenHands browser_use',9100,0],['browser-use',9400,0]];
+const mx=9400;
+const RANK=[['Playwright MCP',7],['Exa MCP',5],['Context7',5],['Chrome DevTools MCP',3],['Sequential Thinking',2]];
+const CAPS=[['浏览器',[1,1,0,1,1,1,1,0,1,0,1,0,1]],['网页搜索',[1,0,0,1,1,1,1,1,1,1,1,1,1]],
+ ['读文件',[1,2,1,1,1,1,1,1,1,1,1,0,1]],['Shell',[1,1,1,1,1,1,1,1,1,1,1,1,1]],
+ ['长期记忆',[0,0,0,0,0,1,1,0,0,1,1,0,1]],['代码搜索',[1,0,1,1,1,1,0,1,1,1,1,0,1]]];
+
+document.getElementById('v-home').innerHTML=`${NAV()}
+<div class="bd">
+
+<section class="hero">
+  <h1>该给你的 agent 装哪个工具？</h1>
+  <div class="search">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+      <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input placeholder="搜索工具、能力或 agent…">
+    <div class="k"><span>⌘</span><span>K</span></div>
+  </div>
+  <div class="chips">
+    <a href="#">浏览器</a><a href="#">网页搜索</a><a href="#">长期记忆</a>
+    <a href="#">代码搜索</a><a href="#">读文件</a><a href="#">Shell 执行</a>
+  </div>
+</section>
+
+<div class="sech"><h2>精选</h2><div class="rule"></div><a href="#">全部 →</a></div>
+<div class="grid">
+
+  <a class="card wide" href="#">
+    <div class="vis"><div class="bars">
+      ${bars.map(b=>`<div class="row ${b[2]?'on':''}"><span class="l">${b[0]}</span>
+        <span class="t"><i style="width:${Math.round(b[1]/mx*100)}%"></i></span>
+        <span class="v">${(b[1]/1000).toFixed(1)}k</span></div>`).join('')}
+    </div></div>
+    <div class="txt"><div class="kind">实测 · 浏览器工具</div>
+      <h3>八个浏览器 MCP，每次快照差 3.5 倍 token</h3>
+      <p>截图流每步 9k+，a11y 树流不到 3k。长任务里这个差距决定你撑不撑得到最后。</p>
+      <div class="foot">browser-snapshot-cost@v1 · 8 个候选 · 09-05</div></div>
+  </a>
+
+  <a class="card" href="#">
+    <div class="vis"><div class="chg"><span class="o">50KB</span><span class="arw">→</span><span class="a">32KB</span></div></div>
+    <div class="txt"><div class="kind">变更</div>
+      <h3>opencode 调低了 read 的字节上限</h3>
+      <p>同一个文件现在要多读一次才拿得完。</p>
+      <div class="foot">08-29 · v0.6.2</div></div>
+  </a>
+
+  <a class="card" href="#">
+    <div class="vis"><div class="rank">
+      ${RANK.map(r=>`<div class="r"><span class="n">${r[0]}</span>
+        <span class="d">${Array.from({length:13},(_,i)=>`<i class="${i<r[1]?'f':''}"></i>`).join('')}</span>
+        <span class="c">${r[1]}/13</span></div>`).join('')}
+    </div></div>
+    <div class="txt"><div class="kind">榜单 · adoption</div>
+      <h3>被最多 harness 内置的外部工具</h3>
+      <p>专家用工程代价投出来的票，比 star 数可信得多。</p>
+      <div class="foot">13 个 harness 逐个核对</div></div>
+  </a>
+
+  <a class="card" href="#">
+    <div class="vis"><div class="code">
+      <div><span class="k">claude-code</span><span class="v"><u>   1→</u>import fs</span></div>
+      <div><span class="k">opencode</span><span class="v"><u>1: </u>import fs</span></div>
+      <div><span class="k">hermes</span><span class="v"><u>1|</u>import fs</span></div>
+      <div><span class="k">pi</span><span class="v">import fs</span></div>
+      <div class="off"><span class="k">codex</span><span class="v">没有 read 工具</span></div>
+    </div></div>
+    <div class="txt"><div class="kind">对照 · read</div>
+      <h3>九个 read 工具，四种行号格式</h3>
+      <p>两家为此写了防护代码，防止模型把行号前缀写回源文件。</p>
+      <div class="foot">09-02 · 逐行核过源码</div></div>
+  </a>
+
+  <a class="card wide" href="#">
+    <div class="vis"><div class="mx">
+      <div class="hdr"><span></span><span class="a">CLAUDE CODE · CODEX · PI · OPENHANDS · OPENCODE · HERMES · OPENCLAW · KIMI · DSH · QWEN · GROK · ZCODE · MIMO</span></div>
+      ${CAPS.map(c=>`<div class="rw"><span class="l">${c[0]}</span>
+        <span class="c">${c[1].map(v=>`<i class="${v===1?'f':v===2?'p':''}"></i>`).join('')}</span></div>`).join('')}
+    </div></div>
+    <div class="txt"><div class="kind">数据库现状</div>
+      <h3>13 个 agent × 6 种能力，谁有什么</h3>
+      <p>灰色是没有：Codex 没有 read（用 shell），一半的 agent 没有长期记忆。这张表是所有对照页的底座。</p>
+      <div class="foot">61 个工具建档 · 每格链到源码</div></div>
+  </a>
+
+  <a class="card" href="#">
+    <div class="vis"><div class="ratio">
+      <div class="big">6/9</div>
+      <div class="sq">${'<i class="f"></i>'.repeat(6)}${'<i></i>'.repeat(3)}</div>
+    </div></div>
+    <div class="txt"><div class="kind">发现</div>
+      <h3>六个 agent 没有 staleness 检查</h3>
+      <p>文件在 agent 读完之后被改了，写入照样覆盖，不告警。</p>
+      <div class="foot">09-02 · observation</div></div>
+  </a>
+
+</div>
+
+<footer><a href="#">方法</a><a href="#">数据</a><a href="#">GitHub</a><span class="r">UPDATED 2026-09-05</span></footer>
+</div>`;
+
+const T=[
+ {n:'Playwright MCP',ad:'claude-code, opencode, cursor',c:'5 天前',snap:3200,tc:21,ob:['a11y 树','新 profile','无']},
+ {n:'Chrome DevTools MCP',ad:'opencode, cline',c:'11 天前',snap:2700,tc:14,ob:['a11y 树 + CDP','接管已登录','无']},
+ {n:'browser-use',ad:'openhands',c:'2 天前',snap:9400,tc:9,ob:['截图 + DOM','新 profile','部分']},
+ {n:'Stagehand',ad:'—',c:'8 天前',snap:5100,tc:6,ob:['DOM','新 profile','无']},
+ {n:'Browserbase',ad:'—',c:'4 天前',snap:4800,tc:12,ob:['DOM','新 profile','有']},
+ {n:'camoufox-mcp',ad:'—',c:'21 天前',snap:5600,tc:11,ob:['DOM','新 profile','有']},
+ {n:'OpenHands browser_use',ad:'harness 内置',c:'3 天前',snap:9100,tc:8,ob:['截图 + DOM','新 profile','无']},
+ {n:'OpenClaw browser',ad:'harness 内置',c:'1 天前',snap:3900,tc:16,ob:['CDP','接管已登录','无']},
+];
+document.getElementById('v-cap').innerHTML=`${NAV('cap')}
+<div class="bd"><div class="cap">
+ <div class="eyebrow">能力 · 浏览器工具 · 更新于 2026-09-05</div>
+ <h1>我想让 agent 用浏览器干活，选哪个？</h1>
+ <div class="verdict"><div class="l">一般选</div><div class="p">Playwright MCP</div>
+  <div class="r">被最多 harness 内置、维护活跃，快照成本处在中位。多数人从它开始不会错。</div></div>
+ <div class="exc">
+  <div><span class="i">需要登录态（Gmail、内网后台）</span><span class="t">Chrome DevTools MCP →</span></div>
+  <div><span class="i">目标站有反爬</span><span class="t">camoufox-mcp →</span></div>
+  <div><span class="i">页面靠 Canvas / 非标准控件</span><span class="t">computer use →</span></div>
+ </div>
+ <div class="kpi">
+  <div><div class="n">3,200</div><div class="l">每次快照 token<br>八个候选中位 4,800</div></div>
+  <div><div class="n">21</div><div class="l">装上后占用的工具位<br>中位 12</div></div>
+  <div><div class="n">4,800</div><div class="l">常驻 schema token<br>每一轮都在付</div></div>
+ </div>
+ <div class="method">browser-snapshot-cost@v1 · 2026-09-05 · 三个固定页面取中位 · 示例数据</div>
+ <p class="prose">八个候选真正的分水岭只有一条：<b>用 a11y 树还是截图</b>。截图流每步要花三倍 token，长任务撑不到一半就得压缩上下文；a11y 树省得多，但遇到 Canvas 和自定义控件会直接瞎掉。<br><br>第二条线是<b>登录态</b>。多数工具起一个全新 profile——意味着 Gmail、内网后台这类需要身份的活儿全都干不了。要干真活，只有 CDP attach 那一类。</p>
+ <div class="sech" style="padding-top:0"><h2>八个候选</h2><div class="rule"></div><span style="font-size:12.5px;color:var(--mute)">示例数据</span></div>
+ <table class="data"><thead><tr><th>工具</th><th>感知方式</th><th>登录态</th><th>反检测</th>
+  <th style="text-align:right">快照 tok</th><th style="text-align:right">工具位</th><th>谁内置了它</th><th>提交</th></tr></thead><tbody>
+ ${T.map((t,i)=>`<tr class="${i===0?'hi':''}"><td class="nm">${t.n}</td><td class="dim">${t.ob[0]}</td>
+   <td class="dim">${t.ob[1]}</td><td class="dim">${t.ob[2]}</td><td class="num">${t.snap.toLocaleString()}</td>
+   <td class="num">${t.tc}</td><td class="dim">${t.ad}</td><td class="dim">${t.c}</td></tr>`).join('')}
+ </tbody></table>
+ <footer><a href="#">完整对照与逐条出处</a><span class="r">8 CANDIDATES</span></footer>
+</div></div>`;
+
+document.querySelectorAll('#poc button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#poc button').forEach(x=>x.classList.toggle('on',x===b));
+  document.getElementById('v-home').style.display=b.dataset.v==='home'?'':'none';
+  document.getElementById('v-cap').style.display=b.dataset.v==='cap'?'':'none';
+  window.scrollTo(0,0);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coding-agent tool matrix</title>
+<style>
+  :root{
+    --bg:#0d0f12; --panel:#14171c; --line:#242a33; --line2:#1b2027;
+    --fg:#e6e9ee; --dim:#7d8794; --accent:#7cc4ff; --have:#9fe6b0; --none:#3d434c;
+    --sticky:#11141a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Inter,system-ui,sans-serif;}
+  header{padding:18px 16px 12px;border-bottom:1px solid var(--line);}
+  h1{margin:0 0 6px;font-size:17px;letter-spacing:-.01em;font-weight:650}
+  p.sub{margin:0;font-size:12.5px;color:var(--dim);line-height:1.5}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--dim)}
+  .legend b{font-weight:600;color:var(--fg)}
+  .wrap{overflow:auto;max-height:calc(100vh - 118px);-webkit-overflow-scrolling:touch}
+  table{border-collapse:separate;border-spacing:0;font-size:11.5px;min-width:1180px}
+  th,td{padding:6px 9px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:middle}
+  thead th{position:sticky;top:0;z-index:3;background:var(--sticky);border-bottom:1px solid var(--line);
+    font-size:10.5px;font-weight:650;letter-spacing:.03em;text-transform:uppercase;color:var(--accent);text-align:left}
+  thead th span{display:block;font-size:9.5px;color:var(--dim);font-weight:500;text-transform:none;letter-spacing:0}
+  th.rowhead,td.rowhead{position:sticky;left:0;z-index:2;background:var(--sticky);
+    border-right:1px solid var(--line);font-weight:550;color:var(--fg);min-width:186px;white-space:normal;line-height:1.3}
+  thead th.rowhead{z-index:4}
+  tr.sec td{position:sticky;left:0;background:#171b21;color:var(--accent);font-size:10px;font-weight:700;
+    letter-spacing:.09em;text-transform:uppercase;padding:9px 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  td.c{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.8px;color:var(--have)}
+  td.n{color:var(--none);text-align:center}
+  td.v{font-family:ui-monospace,monospace;font-size:10.2px;color:var(--dim);font-style:italic}
+  tbody tr:hover td{background:#171a20}
+  tbody tr:hover td.rowhead{background:#1b1f26}
+  footer{padding:12px 16px 26px;font-size:11px;color:var(--dim);border-top:1px solid var(--line);line-height:1.6}
+  @media (max-width:640px){ th.rowhead,td.rowhead{min-width:140px;font-size:11px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Coding-agent tool matrix — same capability, one row</h1>
+  <p class="sub">Exact tool names as registered in each harness. Pulled from repo source where reachable; ZCode from secondary reporting.</p>
+  <div class="legend">
+    <span><b style="color:var(--have)">green</b> = tool exists, name shown</span>
+    <span><b style="color:var(--dim)">grey italic</b> = no dedicated tool, done another way</span>
+    <span><b style="color:var(--none)">—</b> = absent</span>
+  </div>
+</header>
+<div class="wrap"><table id="t"></table></div>
+<footer>
+  Sources: openai/codex · earendil-works/pi · OpenHands/software-agent-sdk · anomalyco/opencode · NousResearch/hermes-agent ·
+  openclaw/openclaw docs · MoonshotAI/kimi-code · deepseek-ai/deepseek-harness (docs/tool-catalog.md) · QwenLM/qwen-code ·
+  xai-org/grok-build · XiaomiMiMo/MiMo-Code. Claude Code from its own runtime.
+</footer>
+<script>
+const AGENTS=[
+ ["Claude Code","Anthropic"],["Codex","OpenAI"],["pi","badlogic"],["OpenHands","OpenHands"],
+ ["opencode","anomalyco"],["Hermes","Nous"],["OpenClaw","openclaw"],["Kimi Code","Moonshot"],
+ ["dsh","DeepSeek"],["Qwen Code","Alibaba"],["Grok Build","xAI"],["ZCode","Z.ai"],["MiMo Code","Xiaomi"]];
+
+// cell: "name" | "" (absent) | "~note" (done another way)
+const DATA=[
+["Shell & execution",[
+ ["Run shell command",["Bash","exec_command","bash","terminal (execute_bash)","bash","terminal","exec","bash","bash / pwsh","run_shell_command","bash","Bash","bash"]],
+ ["Persistent / interactive shell",["BashOutput","write_stdin / unified_exec","","","","process","process / terminal","","bash-persistent, terminal_open/read/send","","monitor","~background processes","bash-interactive"]],
+ ["Kill a running process",["KillShell","","","","","process","process","","job_kill","","kill_task","","~bash"]],
+ ["Sandboxed code execution",["","code_mode","","~IPython (legacy)","code-mode","execute_code","code_execution","","run_code, cordis_run","","","","tool-script"]],
+]],
+["Files",[
+ ["Read file",["Read","~shell","read","file_editor (view)","read","read_file","read","read","read","read_file","read_file","Read","read"]],
+ ["Write new file",["Write","apply_patch","write","file_editor (create)","write","write_file","write","write","write","write_file","~search_replace","Write","write"]],
+ ["Edit / replace in file",["Edit","apply_patch","edit","str_replace_editor","edit","patch","edit","edit","edit, str_replace_editor","edit","search_replace","Edit","edit, multiedit"]],
+ ["Structured patch format",["","apply_patch","","apply_patch","apply_patch","patch","apply_patch","","str_replace_editor","","","","apply_patch"]],
+ ["Notebook editing",["NotebookEdit","","","","","","","","","","","","notebook-edit"]],
+ ["View image / media",["Read","view_image","","","","vision_analyze","view_image","read-media","read_image","~read_file","~computer","~image analysis","view-image"]],
+]],
+["Search & code intelligence",[
+ ["Glob / file patterns",["Glob","~shell","find","glob","glob","search_files","~exec","glob","glob","glob","list_dir","Glob","glob"]],
+ ["Grep / content search",["Grep","~shell","grep","grep","grep","search_files","~exec","grep","grep","grep_search","grep","Grep","grep, codesearch"]],
+ ["List directory",["~Glob","~shell","ls","~glob","list","~search_files","~exec","~glob","~glob","list_directory","list_dir","~Glob","~glob"]],
+ ["LSP / diagnostics",["","","","","lsp","~write-time LSP","","","lsp","","lsp","","lsp"]],
+]],
+["Web & browser",[
+ ["Fetch a URL",["WebFetch","~mcp","","~web_read","webfetch","web_extract","web_fetch","fetch-url","web_fetch","web_fetch","web_fetch","~web","webfetch"]],
+ ["Web search",["WebSearch","~mcp","","","websearch","web_search","web_search","web-search","web_search","web_search","web_search","~web search","websearch"]],
+ ["Social / X search",["","","","","","x_search","x_search","","","","","",""]],
+ ["Browser automation",["~mcp","","","browser_use","","browser_navigate/click/type/…","browser","","","","~computer","","~mcp"]],
+]],
+["Planning & state",[
+ ["Todo list",["TodoWrite / TaskCreate","update_plan","","task_tracker","todowrite","todo","~goal tools","todo-list","todo_write","todo_write","todo","TodoRead / TodoWrite","todo"]],
+ ["Plan mode",["ExitPlanMode","update_plan","","planning_file_editor","plan","","","enter-plan-mode / exit-plan-mode","exit_plan_mode","","enter_plan_mode / exit_plan_mode","EnterPlanMode / ExitPlanMode","plan"]],
+ ["Long-lived goals",["","","","","","","get_goal / create_goal / update_goal","create-goal, update-goal, set-goal-budget","create_goal / get_goal / update_goal","","update_goal","","~goal loops"]],
+ ["Persistent memory",["~CLAUDE.md","","","","","memory","~memory host","","","save_memory","memory_get, memory_search","","memory"]],
+ ["Scripted workflow / loop",["Workflow","","","workflow","","","","","workflow, ralph","","workflow","","workflow"]],
+]],
+["Multi-agent",[
+ ["Spawn subagent",["Task","spawn_agent","","delegate / task","task","delegate_task","subagents","agent, agent-swarm","subagent","task","task","Agent","task, fleet, actor"]],
+ ["Message a running agent",["SendMessage","send_input","","","","","agents_list / agents_wait","","send_message, interrupt_agent","","send_subagent_message","","session"]],
+ ["Read subagent output",["TaskOutput","","","","","","session_status","","report, job_output","","task_output","",""]],
+ ["Shared task board",["TaskCreate / TaskUpdate","","","","","kanban_*","","","team_task_create/get/list/update, spawn_teammate","","","",""]],
+ ["Isolated git worktree",["EnterWorktree","","","","","subagent_worktree","","","","","~auto worktree","","auto-worktree"]],
+]],
+["Human in the loop",[
+ ["Ask the user a question",["AskUserQuestion","request_user_input","","","question","clarify","ask_user","ask-user","ask_user_question","","ask_user_question","AskUserQuestion","question"]],
+ ["Request permission / approval",["~permission modes","request_permissions","","","~permissions","approval","~tool policy","","~guard","","","","~permissions"]],
+ ["Fetch a secret without seeing it",["","","","","","","secrets","","credentials","","","",""]],
+ ["Notify / message the user",["PushNotification","send_user_message_async","","","","send_message, react_to_message","message","","","","","",""]],
+]],
+["Extensibility",[
+ ["Skills",["Skill","","~pi packages","","skill","skills_list, skill_view, skill_manage","skills","skill-tool","skill","skill","skills","Skill","skill, skill-search"]],
+ ["Tool search (large catalogs)",["","docs (tool_search)","","","","tool_search","tool_search, tool_describe, tool_search_code","","","","search, use","","mcp-tool-search"]],
+ ["MCP",["✓","mcp, mcp_resource","~extensions","✓","✓","setup_mcp, mcp_tool","mcp","✓","mcp","✓","✓","✓","✓"]],
+ ["Plugin install",["","request_plugin_install, list_available_plugins_to_install","","","","","plugin","","~plugin pkgs","","~marketplace","~plugins","plugin"]],
+ ["Slash commands",["SlashCommand","","","","","","~slash","","","","","",""]],
+]],
+["Time & scheduling",[
+ ["Cron / scheduled runs",["CronCreate, ScheduleWakeup","","","","","cronjob","cron, heartbeat_respond","","schedule_create/delete/list","","scheduler","","cron"]],
+ ["Wait / sleep",["Monitor","sleep, wait_for_environment","","","","","wait","","","","monitor","",""]],
+ ["Current time",["","clock.curr_time","","","","","","","","","","",""]],
+]],
+["Context & session introspection",[
+ ["Remaining context / compaction",["","get_context_remaining, new_context_window","","~condenser","","","","","~compaction","","~compaction","ReadSessionContext","history, checkpoint"]],
+ ["Search past sessions",["","","","","","session_search","sessions_*","","session_search, session_trace, session_event_*","","","","history"]],
+]],
+["Media generation",[
+ ["Image generation / edit",["","","","","","image_generate","image_generate","","","","image_gen, image_edit","",""]],
+ ["Video generation",["","","","","","video_generate","video_generate","","","","video_gen","",""]],
+ ["Music generation",["","","","","","","music_generate","","","","","",""]],
+ ["Text to speech",["","","","","","text_to_speech","tts","","","","","",""]],
+]],
+["Long-tail / distinctive",[
+ ["Computer / GUI use",["","","","browser_use","","computer_use","screen","","","","computer","",""]],
+ ["Deploy an app",["","","","","","","","","","","app_builder, init_or_update_app, deploy_app","",""]],
+ ["Container / VM definition",["","","","","","environments","nodes, gateway","","cordis_define/run/stop/inspect_*","","","",""]],
+ ["Smart home / IoT",["","","","","","ha_list_entities, ha_call_service","nodes","","","","","",""]],
+ ["Chat platform actions",["","","","","","discord, feishu_*, spotify_*, yuanbao","message, channels","","","","","",""]],
+]]];
+
+const t=document.getElementById('t');
+let h='<thead><tr><th class="rowhead">Capability</th>';
+for(const [n,o] of AGENTS) h+=`<th>${n}<span>${o}</span></th>`;
+h+='</tr></thead><tbody>';
+for(const [sec,rows] of DATA){
+  h+=`<tr class="sec"><td colspan="${AGENTS.length+1}">${sec}</td></tr>`;
+  for(const [label,cells] of rows){
+    h+=`<tr><td class="rowhead">${label}</td>`;
+    for(const c of cells){
+      if(!c) h+='<td class="n">—</td>';
+      else if(c[0]==='~') h+=`<td class="v">${c.slice(1)}</td>`;
+      else h+=`<td class="c">${c}</td>`;
+    }
+    h+='</tr>';
+  }
+}
+h+='</tbody>';
+t.innerHTML=h;
+</script>
+</body>
+</html>

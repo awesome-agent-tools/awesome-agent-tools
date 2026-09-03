@@ -1,0 +1,49 @@
+---
+import type { Observation, ObservationKey } from "../lib/schema";
+import { invariantHolds } from "../lib/queries";
+
+interface Props {
+  observation?: Observation;
+  keyDef: ObservationKey;
+  /** Falls back to this when the observation has no link of its own. */
+  fallbackSource?: { url: string; commit?: string; checked_at: Date };
+}
+
+const { observation, keyDef, fallbackSource } = Astro.props;
+
+const holds = invariantHolds(keyDef, observation);
+const href = observation?.source_url ?? fallbackSource?.url;
+const commit = observation?.commit ?? fallbackSource?.commit;
+
+// An invariant may be shown as pass/fail. A design choice may not — differing
+// from everyone else is not the same as being wrong, and the renderer is where
+// that distinction has to be enforced, because prose will not hold the line.
+const asPassFail = keyDef.class === "invariant" && holds !== null;
+---
+
+{
+  !observation || observation.status === "not-applicable" ? (
+    <span class="none" title="Not applicable to this implementation">
+      —
+    </span>
+  ) : observation.status === "unverified" ? (
+    <span class="unk" title="Could not be verified from source">
+      ?
+    </span>
+  ) : asPassFail ? (
+    <span class={`val ${holds ? "pass" : "fail"}`} title={observation.note}>
+      {holds ? "holds" : "fails"}
+    </span>
+  ) : (
+    <span class="mono" title={observation.note}>
+      {String(observation.value)}
+    </span>
+  )
+}
+{
+  observation?.status === "ok" && href && (
+    <a class="src" href={href} rel="nofollow" title={`Source${commit ? ` @ ${commit}` : ""}`}>
+      src
+    </a>
+  )
+}

@@ -1,0 +1,138 @@
+---
+import Base from "../layouts/Base.astro";
+import FeaturedCard from "../components/FeaturedCard.astro";
+import { loadDb } from "../lib/db";
+
+const db = loadDb();
+---
+
+<Base
+  title="awesome-agent-tools — what agent tools actually do, read from source"
+  description="Per-capability comparisons of agent tools. Behaviour read out of the source, numbers measured here, every claim carrying its source."
+>
+  <div class="bd">
+    <section class="hero">
+      <h1>Which tool should your agent use?</h1>
+
+      <div class="search">
+        <input
+          id="q"
+          type="search"
+          autocomplete="off"
+          placeholder="Search tools, capabilities or agents…"
+          aria-label="Search"
+          aria-controls="results"
+        />
+        <button type="button" id="qgo" aria-label="Search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="M20 20l-3.5-3.5"></path>
+          </svg>
+        </button>
+        <!-- Progressive enhancement only. Every page below is reachable by link
+             and rendered as HTML; search just gets you there faster. -->
+        <div class="results" id="results" role="listbox" hidden></div>
+      </div>
+    </section>
+
+    <div class="sech">
+      <h2>Featured</h2>
+      <div class="rule"></div>
+      <a href="/capabilities">All capabilities →</a>
+    </div>
+
+    <div class="grid">
+      {db.featured.map((card) => <FeaturedCard card={card} />)}
+    </div>
+  </div>
+</Base>
+
+<script>
+  interface Entry {
+    name: string;
+    sub: string;
+    kind: string;
+    href: string;
+  }
+
+  const input = document.getElementById("q") as HTMLInputElement | null;
+  const panel = document.getElementById("results");
+  if (input && panel) {
+    let index: Entry[] | null = null;
+    let active = -1;
+
+    const load = async () => {
+      if (!index) index = await fetch("/search-index.json").then((r) => r.json());
+      return index!;
+    };
+
+    const render = (matches: Entry[]) => {
+      active = -1;
+      if (matches.length === 0) {
+        panel.hidden = true;
+        return;
+      }
+      panel.innerHTML = matches
+        .map(
+          (m) =>
+            `<a role="option" href="${m.href}"><span>${m.name}</span><span class="sub">${m.sub}</span><span class="kindtag">${m.kind}</span></a>`,
+        )
+        .join("");
+      panel.hidden = false;
+    };
+
+    const search = async () => {
+      const q = input.value.trim().toLowerCase();
+      if (q.length < 2) {
+        panel.hidden = true;
+        return;
+      }
+      const entries = await load();
+      render(
+        entries
+          .filter((e) => e.name.toLowerCase().includes(q) || e.sub.toLowerCase().includes(q))
+          .slice(0, 8),
+      );
+    };
+
+    input.addEventListener("input", search);
+
+    // The button opens the first match if there is a query, and otherwise just
+    // puts the cursor in the field — there is no results page to submit to.
+    document.getElementById("qgo")?.addEventListener("click", async () => {
+      if (input.value.trim().length < 2) {
+        input.focus();
+        return;
+      }
+      await search();
+      const first = panel.querySelector("a") as HTMLAnchorElement | null;
+      if (first) first.click();
+      else input.focus();
+    });
+
+    input.addEventListener("keydown", (e) => {
+      const options = [...panel.querySelectorAll("a")];
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        active = Math.max(0, Math.min(options.length - 1, active + (e.key === "ArrowDown" ? 1 : -1)));
+        options.forEach((o, i) => o.classList.toggle("on", i === active));
+      } else if (e.key === "Enter" && active >= 0) {
+        e.preventDefault();
+        (options[active] as HTMLAnchorElement).click();
+      } else if (e.key === "Escape") {
+        panel.hidden = true;
+        input.blur();
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!panel.contains(e.target as Node) && e.target !== input) panel.hidden = true;
+    });
+    document.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        input.focus();
+      }
+    });
+  }
+</script>

@@ -1,0 +1,114 @@
+---
+import Base from "../layouts/Base.astro";
+import { loadDb } from "../lib/db";
+
+const db = loadDb();
+const fmt = (d: Date) => d.toLocaleDateString("en-CA");
+---
+
+<Base
+  title="Measurements — awesome-agent-tools"
+  description="Benchmarks, their protocols, and every run that has produced numbers."
+  section="runs"
+>
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">Measurements</div>
+      <h1>What has actually been measured</h1>
+
+      <p class="prose">
+        Two numbers are only comparable when they share a metric <b>and</b> a protocol version.
+        Every figure on this site carries <code>benchmark@version</code> and a run date for exactly
+        that reason — putting two differently-produced numbers in one table is the fastest way for a
+        site like this to stop being worth reading.
+      </p>
+
+      {
+        db.runs.length === 0 && (
+          <p class="prose">
+            <b>No runs yet.</b> The protocols below are written down first, deliberately, so the
+            numbers cannot be shaped to fit a story after the fact. Nothing on this site is presented
+            as measured until a run file exists to back it.
+          </p>
+        )
+      }
+
+      <div class="sech" style="padding-top:0">
+        <h2>Protocols</h2>
+        <div class="rule"></div>
+      </div>
+
+      {
+        db.benchmarks.map((b) => (
+          <>
+            <div class="scroller">
+              <table class="data">
+                <caption>
+                  <b>{b.name}</b> — {b.question}
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Version</th>
+                    <th>Emits</th>
+                    <th>Fixtures</th>
+                    <th class="num">Runs</th>
+                    <th>Method</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {b.versions.map((v) => {
+                    const runs = db.runsForBenchmark(b.id).filter((r) => r.benchmark_version === v.version);
+                    return (
+                      <tr>
+                        <td class="nm mono">{v.version}</td>
+                        <td class="dim wrap">
+                          {v.emits.map((m) => db.metric(m)?.name ?? m).join(" · ")}
+                        </td>
+                        <td class="dim mono">{v.fixtures_ref ?? "—"}</td>
+                        <td class="num">{runs.length}</td>
+                        <td class="dim">
+                          {v.post ? <a href={`/posts/${v.post}`}>post</a> : <span class="unk">unpublished</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p class="prose" style="font-size:14px">{b.versions[0].protocol}</p>
+          </>
+        ))
+      }
+
+      {
+        db.runs.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Runs</h2>
+              <div class="rule" />
+            </div>
+            <div class="list">
+              {db.runs.map((run) => (
+                <a class="item" href={run.post ? `/posts/${run.post}` : "#"}>
+                  <span class="ttl">
+                    {db.benchmark(run.benchmark)?.name ?? run.benchmark}
+                    {run.draft && <span class="badge warn" style="margin-left:8px">Sample data</span>}
+                    <span class="dsc">
+                      {run.measurements.length} measurements ·{" "}
+                      {Object.entries(run.environment)
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                  <span class="dt">
+                    {run.benchmark}@{run.benchmark_version} · {fmt(run.date)}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </>
+        )
+      }
+    </div>
+  </div>
+</Base>

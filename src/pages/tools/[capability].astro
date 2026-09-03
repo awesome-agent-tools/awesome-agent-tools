@@ -1,0 +1,314 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import ObservationValue from "../../components/ObservationValue.astro";
+import { loadDb } from "../../lib/db";
+import { groupedKeys, tally } from "../../lib/queries";
+
+export async function getStaticPaths() {
+  const db = loadDb();
+  return db.capabilities.map((capability) => ({
+    params: { capability: capability.id },
+    props: { capabilityId: capability.id },
+  }));
+}
+
+const { capabilityId } = Astro.props;
+const db = loadDb();
+const capability = db.capability(capabilityId)!;
+
+// The editorial layer is optional. With a `pick` this renders as a buying
+// guide; without one the verdict block simply does not exist and the page is a
+// reference table. Same template, two shapes — see product.md §7.
+const entry = (await getCollection("capabilities")).find((e) => e.id === capabilityId);
+const Prose = entry ? (await render(entry)).Content : null;
+const pick = entry?.data.pick;
+const pickTool = pick ? db.tool(pick.tool) : undefined;
+
+const all = db.toolsByCapability(capabilityId);
+// A tool with no observations is present but unstudied. It gets named below the
+// table rather than shown as a row of dashes, which would read as "does none of
+// this" instead of "we have not checked".
+const documented = all.filter((t) => t.observations.some((o) => db.observationKey(o.key)?.capability === capabilityId));
+const unstudied = all.filter((t) => !documented.includes(t));
+
+const groups = groupedKeys(db, capabilityId);
+const headlineKeys = db.keysForCapability(capabilityId).filter((k) => k.headline);
+
+const runs = db.benchmarks
+  .filter((b) => b.capability === capabilityId)
+  .flatMap((b) => db.runsForBenchmark(b.id).map((run) => ({ benchmark: b, run })));
+
+// Headline figures are computed from the same rows the table below renders, so
+// the top of the page cannot drift away from the bottom of it.
+const kpis = (entry?.data.kpi ?? []).map((k) => {
+  const derive = k.derive;
+  if (!derive) return { value: k.value!, label: k.label, sub: k.sub };
+  const t = tally(db, capabilityId, derive.key);
+  const value =
+    derive.as === "ratio"
+      ? `${t.values.find((v) => v.value === derive.counts)?.count ?? 0}/${t.answered}`
+      : String(t.values.length);
+  return { value, label: k.label, sub: k.sub };
+});
+
+const updated = entry?.data.updated ?? db.lastUpdated();
+const fmt = (d: Date) => d.toLocaleDateString("en-CA");
+---
+
+<Base
+  title={`${capability.name} — ${capability.question}`}
+  description={capability.description}
+  section="capabilities"
+>
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">
+        Capability · {capability.name} · updated {fmt(updated)}
+      </div>
+      <h1>{capability.question}</h1>
+
+      {
+        pick && (
+          <>
+            <div class="verdict">
+              <div class="l">{pick.label}</div>
+              <div class="p">{pickTool ? pickTool.exposed_name : pick.tool}</div>
+              <div class="r">{pick.reason}</div>
+            </div>
+            {entry!.data.switch_when.length > 0 && (
+              <div class="exc">
+                {entry!.data.switch_when.map((s) => (
+                  <div>
+                    <span class="i">{s.situation}</span>
+                    <span class="t">{s.href ? <a href={s.href}>{s.then} →</a> : s.then}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )
+      }
+
+      {
+        kpis.length > 0 && (
+          <>
+            <div class="kpi">
+              {kpis.map((k) => (
+                <div>
+                  <div class="n tnum">{k.value}</div>
+                  <div class="l">
+                    {k.label}
+                    {k.sub && (
+                      <>
+                        <br />
+                        {k.sub}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div class="method">{capability.description}</div>
+          </>
+        )
+      }
+
+      {Prose && <div class="prose"><Prose /></div>}
+
+      {
+        runs.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Measured</h2>
+              <div class="rule" />
+            </div>
+            {runs.map(({ benchmark, run }) => (
+              <div class="scroller">
+                <table class="data">
+                  <caption>
+                    {benchmark.name} · {benchmark.id}@{run.benchmark_version} · run {fmt(run.date)}
+                    {run.draft && <span class="badge warn" style="margin-left:8px">Sample data</span>}
+                    {run.post && (
+                      <>
+                        {" · "}
+                        <a href={`/posts/${run.post}`}>method</a>
+                      </>
+                    )}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th>Subject</th>
+                      <th>Metric</th>
+                      <th class="num">Value</th>
+                      <th>Version measured</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {run.measurements.map((m) => {
+                      const label = db.subjectLabel(m.subject);
+                      const metric = db.metric(m.metric);
+                      return (
+                        <tr>
+                          <td class="nm">
+                            {label.href ? <a href={label.href}>{label.name}</a> : label.name}
+                          </td>
+                          <td class="dim">{metric?.name ?? m.metric}</td>
+                          <td class="num">
+                            {m.status === "ok" ? (m.value_num ?? m.value) : "—"}
+                          </td>
+                          <td class="dim mono">{m.subject_version ?? "—"}</td>
+                          <td class="dim">{m.status === "ok" ? "" : `${m.status}: ${m.note ?? ""}`}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </>
+        )
+      }
+
+      <div class="sech" style="padding-top:0">
+        <h2>Candidates</h2>
+        <div class="rule"></div>
+        <span class="note">{all.length} tools · {documented.length} read from source</span>
+      </div>
+
+      <div class="scroller">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Owner</th>
+              <th>Tool</th>
+              {headlineKeys.map((k) => (
+                <th>
+                  {k.short ?? k.label}
+                  <span class="sub">{k.class === "invariant" ? "invariant" : "choice"}</span>
+                </th>
+              ))}
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              documented.map((tool) => (
+                <tr id={tool.id} class={pickTool?.id === tool.id ? "hi" : undefined}>
+                  <td class="nm">
+                    <a href={tool.ownerRef.href}>{tool.ownerRef.name}</a>
+                  </td>
+                  <td class="mono">
+                    <a href={tool.href}>{tool.exposed_name}</a>
+                  </td>
+                  {headlineKeys.map((k) => (
+                    <td>
+                      <ObservationValue
+                        keyDef={k}
+                        observation={tool.observations.find((o) => o.key === k.key)}
+                        fallbackSource={tool.source}
+                      />
+                    </td>
+                  ))}
+                  <td class="dim">
+                    {tool.source ? (
+                      <a class="mono" href={tool.source.url}>
+                        repo
+                      </a>
+                    ) : (
+                      <span class="none">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      {
+        unstudied.length > 0 && (
+          <p class="prose" style="font-size:14px">
+            <b>Present but not verified.</b>{" "}
+            {unstudied.length} more {unstudied.length === 1 ? "harness registers" : "harnesses register"} a{" "}
+            {capability.name.toLowerCase()} tool that has not been read from source:{" "}
+            {unstudied.map((t, i) => (
+              <>
+                {i > 0 && ", "}
+                <a href={t.href}>
+                  {t.ownerRef.name} <code>{t.exposed_name}</code>
+                </a>
+              </>
+            ))}
+            . They are left out of the table below rather than shown as empty rows — a blank cell
+            would claim the behaviour is absent, which is a different thing from not having checked.
+          </p>
+        )
+      }
+
+      {
+        groups.length > 0 && documented.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Full comparison</h2>
+              <div class="rule" />
+              <span class="note">every cell links to where it was read</span>
+            </div>
+            <div class="scroller matrix">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Dimension</th>
+                    {documented.map((t) => (
+                      <th>
+                        {t.ownerRef.name}
+                        <span class="sub">{t.exposed_name}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map((group) => (
+                    <>
+                      <tr class="sec">
+                        <td colspan={documented.length + 1}>{group.group}</td>
+                      </tr>
+                      {group.keys.map((k) => (
+                        <tr id={k.key}>
+                          <td class="nm wrap" title={k.description}>
+                            {k.label}
+                            {k.class === "invariant" && (
+                              <span class="badge" style="margin-left:6px">
+                                invariant
+                              </span>
+                            )}
+                          </td>
+                          {documented.map((t) => (
+                            <td>
+                              <ObservationValue
+                                keyDef={k}
+                                observation={t.observations.find((o) => o.key === k.key)}
+                                fallbackSource={t.source}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p class="prose" style="font-size:13.5px;color:var(--mute)">
+              Rows marked <span class="badge">invariant</span> are things every implementation should
+              hold to, so they render as pass/fail. Everything else is a design choice: differing is
+              recorded, never scored. <span class="unk">?</span> means we could not verify it;{" "}
+              <span class="none">—</span> means the question does not apply.
+            </p>
+          </>
+        )
+      }
+    </div>
+  </div>
+</Base>

@@ -1,0 +1,70 @@
+---
+import Base from "../../layouts/Base.astro";
+import { loadDb } from "../../lib/db";
+
+export async function getStaticPaths() {
+  const db = loadDb();
+  return db.packages.map((pkg) => ({ params: { pkg: pkg.id }, props: { pkgId: pkg.id } }));
+}
+
+const { pkgId } = Astro.props;
+const db = loadDb();
+const pkg = db.package(pkgId)!;
+const tools = db.toolsByOwner("package", pkg.id);
+const adopters = db.adoptionOf(pkg.id);
+const fmt = (d: Date) => d.toLocaleDateString("en-CA");
+---
+
+<Base title={`${pkg.name} — package reference`} description={`Tools registered by ${pkg.name}, and which harnesses ship it.`} section="tools">
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">Package · {pkg.kind}{pkg.vendor && ` · ${pkg.vendor}`}</div>
+      <h1>{pkg.name}</h1>
+
+      <div class="meta">
+        <span>{tools.length} tools registered</span>
+        <span>{adopters.length} of {db.agents.length} harnesses ship it</span>
+        {pkg.repo && <a href={pkg.repo}>repo</a>}
+        {pkg.install_id && <span class="mono">{pkg.install_id}</span>}
+        {pkg.stars !== undefined && <span class="tnum">{pkg.stars.toLocaleString()} stars</span>}
+        {pkg.last_commit && <span>last commit {fmt(pkg.last_commit)}</span>}
+      </div>
+
+      {
+        adopters.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Shipped by</h2>
+              <div class="rule" />
+              <span class="note">the strongest signal available — engineering effort, not a click</span>
+            </div>
+            <div class="chips" style="justify-content:flex-start;margin-bottom:46px">
+              {adopters.map((a) => (
+                <a href={`/agents/${a.id}`}>{a.name}</a>
+              ))}
+            </div>
+          </>
+        )
+      }
+
+      {
+        tools.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Tools it registers</h2>
+              <div class="rule" />
+              <span class="note">every one of these occupies a slot in the model's tool list</span>
+            </div>
+            <div class="chips" style="justify-content:flex-start;margin-bottom:46px">
+              {tools.map((t) => (
+                <a href={t.href} class="mono">
+                  {t.exposed_name}
+                </a>
+              ))}
+            </div>
+          </>
+        )
+      }
+    </div>
+  </div>
+</Base>

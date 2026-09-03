@@ -1,0 +1,193 @@
+---
+import Base from "../../layouts/Base.astro";
+import { loadDb } from "../../lib/db";
+
+export async function getStaticPaths() {
+  const db = loadDb();
+  return db.agents.map((agent) => ({ params: { agent: agent.id }, props: { agentId: agent.id } }));
+}
+
+const { agentId } = Astro.props;
+const db = loadDb();
+const agent = db.agent(agentId)!;
+const tools = db.toolsByOwner("agent", agent.id);
+
+/**
+ * An index, not an argument. Comparison happens on capability pages; this page
+ * exists to show what this harness registers and how those tools connect to
+ * those comparisons. Every capability is listed, including the ones it has no
+ * tool for — a gap is as informative as a hit, and it is invisible if absent
+ * rows are simply left out.
+ */
+const coverage = db.capabilities.map((capability) => ({
+  capability,
+  tools: tools
+    .filter((t) => t.capabilities.some((c) => c.id === capability.id))
+    .map((t) => ({ tool: t, role: t.capabilities.find((c) => c.id === capability.id)!.role })),
+}));
+
+const covered = coverage.filter((c) => c.tools.length > 0).length;
+const byName = [...tools].sort((a, b) => a.exposed_name.localeCompare(b.exposed_name));
+const studied = tools.filter((t) => t.observations.length > 0);
+const fmt = (d: Date) => d.toLocaleDateString("en-CA");
+---
+
+<Base
+  title={`${agent.name} — tools and capabilities`}
+  description={`The ${tools.length} tools ${agent.name} registers, and how they map onto the capability comparisons.`}
+  section="agents"
+>
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">Agent · {agent.vendor} · {agent.kind}</div>
+      <h1>{agent.name}</h1>
+
+      <div class="meta">
+        <span class="tnum">{tools.length} tools</span>
+        <span class="tnum">{covered} of {db.capabilities.length} capabilities</span>
+        {studied.length > 0 && <span class="tnum">{studied.length} read from source</span>}
+        {agent.repo && <a href={agent.repo}>repo</a>}
+        {agent.language && <span>{agent.language}</span>}
+        {agent.license && <span>{agent.license}</span>}
+        {agent.stars !== undefined && <span class="tnum">{agent.stars.toLocaleString()} stars</span>}
+        {agent.last_commit && <span>last commit {fmt(agent.last_commit)}</span>}
+      </div>
+
+      {
+        !agent.source_available && (
+          <p class="prose">
+            <b>Not source-verified.</b> No public repository was reachable for {agent.name}, so its
+            tool list comes from secondary reporting. Treat it as weaker evidence than the other
+            agents here.
+          </p>
+        )
+      }
+
+      <div class="sech" style="padding-top:0">
+        <h2>Capabilities</h2>
+        <div class="rule"></div>
+        <span class="note">what serves each, and where it is compared</span>
+      </div>
+
+      <div class="scroller">
+        <table class="data cov">
+          <thead>
+            <tr>
+              <th style="width:180px">Capability</th>
+              <th style="width:46%">Tools</th>
+              <th>Compare</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              coverage.map(({ capability, tools: capTools }) => (
+                <tr class={capTools.length === 0 ? "gap" : undefined}>
+                  <td class="nm">{capability.name}</td>
+                  <td class="wrap">
+                    {capTools.length === 0 ? (
+                      <span class="none">no built-in tool</span>
+                    ) : (
+                      capTools.map(({ tool, role }, i) => (
+                        <>
+                          {i > 0 && <span class="sep"> · </span>}
+                          <a class="mono" href={tool.href}>
+                            {tool.exposed_name}
+                          </a>
+                          {/* "primary" is the overwhelming default; saying it on
+                              every row would bury the rows where it is not. */}
+                          {role !== "primary" && <span class="role">{role}</span>}
+                        </>
+                      ))
+                    )}
+                    {/* Only explain the detour where there is one. exec_command
+                        is Codex's shell tool outright, and is only a stand-in
+                        on the rows where it stands in for something else. */}
+                    {(() => {
+                      const detour = capTools.find(({ tool, role }) => tool.via && role !== "primary");
+                      return detour ? <div class="via">{detour.tool.via}</div> : null;
+                    })()}
+                  </td>
+                  <td class="dim">
+                    <a href={`/tools/${capability.id}`}>
+                      {db.toolsByCapability(capability.id).length} across agents →
+                    </a>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      {
+        agent.adoption.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Ships with</h2>
+              <div class="rule" />
+            </div>
+            <div class="scroller">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Package</th>
+                    <th>How</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agent.adoption.map((ad) => {
+                    const pkg = db.package(ad.package);
+                    return (
+                      <tr>
+                        <td class="nm">
+                          {pkg ? <a href={`/packages/${pkg.id}`}>{pkg.name}</a> : ad.package}
+                        </td>
+                        <td class="dim">{ad.kind}</td>
+                        <td class="dim">
+                          <a class="mono" href={ad.source_url}>
+                            link
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )
+      }
+
+      <div class="sech" style="padding-top:0">
+        <h2>All {tools.length} tools</h2>
+        <div class="rule"></div>
+        <span class="note">names verbatim, as registered</span>
+      </div>
+
+      <div class="toolgrid">
+        {
+          byName.map((t) => (
+            <a href={t.href}>
+              <span class="tn">{t.exposed_name}</span>
+              {/* One label only — the table above carries the full mapping, and
+                  a three-capability tag here squeezes out the tool's own name. */}
+              {t.capabilities.length > 0 && (
+                <span class="tc">
+                  {db.capability(t.capabilities[0].id)?.name}
+                  {t.capabilities.length > 1 && ` +${t.capabilities.length - 1}`}
+                </span>
+              )}
+            </a>
+          ))
+        }
+      </div>
+
+      <p class="prose" style="font-size:13.5px;color:var(--mute);margin-top:26px">
+        Tools without a capability label are registered by {agent.name} but have no comparison page
+        yet — todo lists, subagent spawning, approval flows. They become capabilities the day there
+        is a comparison worth reading, and the data does not have to change for that to happen.
+      </p>
+    </div>
+  </div>
+</Base>

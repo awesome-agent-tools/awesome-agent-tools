@@ -1,0 +1,73 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import { loadDb } from "../../lib/db";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("posts");
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const db = loadDb();
+
+const benchmark = post.data.benchmark ? db.benchmark(post.data.benchmark) : undefined;
+const runs = benchmark ? db.runsForBenchmark(benchmark.id).filter((r) => r.post === post.id) : [];
+const fmt = (d: Date) => d.toLocaleDateString("en-CA");
+---
+
+<Base title={post.data.title} description={post.data.lede} section="posts">
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">{post.data.kind.replace("-", " ")} · {fmt(post.data.date)}</div>
+      <h1 class="post-h1">{post.data.title}</h1>
+      <p class="lede">{post.data.lede}</p>
+
+      <div class="prose">
+        <Content />
+      </div>
+
+      {
+        benchmark && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Method</h2>
+              <div class="rule" />
+              <span class="note">this post is the methodology page</span>
+            </div>
+            <p class="prose">
+              Numbers in this post came from <code>{benchmark.id}</code>. The protocol is reproduced
+              below so it can be checked and re-run; the database stores the version alongside every
+              figure, and any table mixing versions says so.
+            </p>
+            {benchmark.versions
+              .filter((v) => v.post === post.id)
+              .map((v) => (
+                <>
+                  <div class="raw">{v.protocol}</div>
+                  <div class="method">
+                    {benchmark.id}@{v.version}
+                    {v.fixtures_ref && ` · fixtures: ${v.fixtures_ref}`}
+                    {" · emits "}
+                    {v.emits.join(", ")}
+                  </div>
+                </>
+              ))}
+            {runs.length > 0 && (
+              <div class="method">
+                {runs.length} run{runs.length === 1 ? "" : "s"} published here ·{" "}
+                <a href="/runs">all measurements →</a>
+              </div>
+            )}
+          </>
+        )
+      }
+
+      <p class="prose" style="font-size:13.5px;color:var(--mute)">
+        Figures in this post are frozen as published on {fmt(post.data.date)}. The living versions
+        live on the <a href="/capabilities">capability pages</a>, which keep moving.
+      </p>
+    </div>
+  </div>
+</Base>

@@ -1,0 +1,241 @@
+---
+import fs from "node:fs";
+import path from "node:path";
+import Base from "../../../layouts/Base.astro";
+import ObservationValue from "../../../components/ObservationValue.astro";
+import { loadDb } from "../../../lib/db";
+import { displayValue, divergences, groupedKeys } from "../../../lib/queries";
+
+export async function getStaticPaths() {
+  const db = loadDb();
+  return db.tools.map((tool) => {
+    const [owner, name] = tool.id.split("/");
+    return { params: { owner, name }, props: { toolId: tool.id } };
+  });
+}
+
+const { toolId } = Astro.props;
+const db = loadDb();
+const tool = db.tool(toolId)!;
+
+const diverges = divergences(db, tool);
+const measurements = db.measurementsForSubject("tool", tool.id);
+const siblings = db.toolsByOwner(tool.owner.type, tool.owner.id).filter((t) => t.id !== tool.id);
+
+// The registered schema is data in its own right — models pick tools partly on
+// how it reads — so it is shown verbatim rather than summarised.
+let schemaText: string | null = null;
+if (tool.schema_file) {
+  const p = path.join(process.cwd(), "data", "tools", tool.owner.id, tool.schema_file);
+  if (fs.existsSync(p)) schemaText = fs.readFileSync(p, "utf8");
+}
+
+const capabilityGroups = tool.capabilities.map((c) => ({
+  capability: db.capability(c.id)!,
+  role: c.role,
+  groups: groupedKeys(db, c.id).map((g) => ({
+    ...g,
+    keys: g.keys.filter((k) => tool.observations.some((o) => o.key === k.key)),
+  })).filter((g) => g.keys.length > 0),
+}));
+
+const fmt = (d: Date) => d.toLocaleDateString("en-CA");
+---
+
+<Base
+  title={`${tool.ownerRef.name} ${tool.exposed_name} — tool reference`}
+  description={`What ${tool.ownerRef.name}'s ${tool.exposed_name} tool does, read from source.`}
+  section="tools"
+>
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">
+        Tool ·{" "}
+        <a href={tool.ownerRef.href}>{tool.ownerRef.name}</a>
+        {tool.ownerRef.vendor && ` · ${tool.ownerRef.vendor}`}
+      </div>
+      <h1 style="font-family:var(--mono);font-size:32px">{tool.exposed_name}</h1>
+
+      <div class="meta">
+        <span>{tool.id}</span>
+        {
+          tool.capabilities.map((c) => (
+            <a href={`/tools/${c.id}`}>
+              {db.capability(c.id)?.name ?? c.id} · {c.role}
+            </a>
+          ))
+        }
+        {tool.source && <a href={tool.source.url}>source</a>}
+        {tool.source?.commit && <span>@{tool.source.commit}</span>}
+        {tool.source && <span>checked {fmt(tool.source.checked_at)}</span>}
+        {!tool.source && <span>not source-verified</span>}
+      </div>
+
+      {
+        diverges.length > 0 && (
+          <div class="diverge">
+            <div class="l" style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)">
+              How this differs from most implementations
+            </div>
+            <ul>
+              {diverges.map((d) => (
+                <li>
+                  <span class="k">
+                    {d.key.label}
+                    {d.key.class === "invariant" && (
+                      <span class="badge" style="margin-left:6px">
+                        invariant
+                      </span>
+                    )}
+                  </span>
+                  <span class="mine">{displayValue(d.key, d.mine)}</span>
+                  <span class="rest">
+                    vs {displayValue(d.key, d.majority)} in {d.majorityCount} of {d.peers}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p class="prose" style="font-size:13px;color:var(--mute);margin-top:14px">
+              Derived by comparing every recorded value against the other implementations of the same
+              capability. Differing is not a defect unless the row is marked an invariant.
+            </p>
+          </div>
+        )
+      }
+
+      {
+        tool.via && (
+          <p class="prose">
+            <b>Reached indirectly.</b> {tool.via}
+          </p>
+        )
+      }
+      {tool.notes && <p class="prose">{tool.notes}</p>}
+
+      {
+        tool.description_text && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Description, as the model sees it</h2>
+              <div class="rule" />
+            </div>
+            <div class="raw">{tool.description_text}</div>
+          </>
+        )
+      }
+
+      {
+        schemaText && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Registered schema</h2>
+              <div class="rule" />
+            </div>
+            <div class="raw">{schemaText}</div>
+          </>
+        )
+      }
+
+      {
+        capabilityGroups.map(({ capability, groups }) =>
+          groups.length === 0 ? null : (
+            <>
+              <div class="sech" style="padding-top:0">
+                <h2>Observed · {capability.name}</h2>
+                <div class="rule" />
+                <a href={`/tools/${capability.id}`}>compare all →</a>
+              </div>
+              <div class="scroller">
+                <table class="data">
+                  <tbody>
+                    {groups.map((group) => (
+                      <>
+                        <tr class="sec">
+                          <td colspan={2}>{group.group}</td>
+                        </tr>
+                        {group.keys.map((k) => {
+                          const o = tool.observations.find((x) => x.key === k.key);
+                          return (
+                            <tr id={k.key}>
+                              <td class="nm wrap" style="width:36%" title={k.description}>
+                                {k.label}
+                                {k.class === "invariant" && (
+                                  <span class="badge" style="margin-left:6px">
+                                    invariant
+                                  </span>
+                                )}
+                              </td>
+                              <td class="wrap">
+                                <ObservationValue keyDef={k} observation={o} fallbackSource={tool.source} />
+                                {o?.note && <div class="dim" style="font-size:12.5px;color:var(--mute);margin-top:3px">{o.note}</div>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ),
+        )
+      }
+
+      {
+        measurements.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Measured</h2>
+              <div class="rule" />
+            </div>
+            <div class="scroller">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th class="num">Value</th>
+                    <th>Protocol</th>
+                    <th>Version measured</th>
+                    <th>Run</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {measurements.map((m) => (
+                    <tr>
+                      <td class="nm">{db.metric(m.metric)?.name ?? m.metric}</td>
+                      <td class="num">{m.status === "ok" ? (m.value_num ?? m.value) : "—"}</td>
+                      <td class="dim mono">
+                        {m.run.benchmark}@{m.run.benchmark_version}
+                      </td>
+                      <td class="dim mono">{m.subject_version ?? "—"}</td>
+                      <td class="dim">{fmt(m.run.date)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )
+      }
+
+      {
+        siblings.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Other tools in {tool.ownerRef.name}</h2>
+              <div class="rule" />
+            </div>
+            <div class="chips" style="justify-content:flex-start;margin-bottom:46px">
+              {siblings.map((s) => (
+                <a href={s.href} class="mono">
+                  {s.exposed_name}
+                </a>
+              ))}
+            </div>
+          </>
+        )
+      }
+    </div>
+  </div>
+</Base>

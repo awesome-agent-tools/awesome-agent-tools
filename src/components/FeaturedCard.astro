@@ -1,0 +1,211 @@
+---
+import { loadDb } from "../lib/db";
+import { tally, rowsFor } from "../lib/queries";
+import type { Featured } from "../lib/schema";
+
+interface Props {
+  card: Featured;
+}
+const { card } = Astro.props;
+const db = loadDb();
+const v = card.visual;
+
+/**
+ * Card visuals are database queries, not illustrations. No photos, no logos, no
+ * generated art: the picture is the evidence, which also means it cannot drift
+ * away from what the data says.
+ */
+
+// -- coverage matrix -------------------------------------------------------
+let matrix: ReturnType<typeof db.coverageMatrix> | null = null;
+if (v.type === "coverage-matrix") matrix = db.coverageMatrix();
+
+// -- observation lines -----------------------------------------------------
+/** What each recorded format looks like as actual bytes in front of a line. */
+const PREFIX: Record<string, string> = {
+  "N + TAB": "   1→",
+  "N: ": "1: ",
+  "N|": "1|",
+  none: "",
+};
+let lines: { owner: string; prefix: string | null; raw: string; absent: boolean }[] = [];
+if (v.type === "observation-lines") {
+  lines = rowsFor(db, v.capability, v.key)
+    .filter((r) => r.observation?.status === "ok")
+    .map((r) => {
+      const raw = String(r.observation!.value);
+      return {
+        owner: r.tool.ownerRef.id,
+        prefix: raw in PREFIX ? PREFIX[raw] : null,
+        raw,
+        absent: raw === "none",
+      };
+    })
+    // Show one example per distinct format, so the card makes the point that
+    // there are N formats rather than just listing implementations.
+    .filter((line, i, all) => all.findIndex((x) => x.raw === line.raw) === i)
+    .slice(0, v.limit);
+}
+
+// -- ratio -----------------------------------------------------------------
+let ratio: { hit: number; total: number } | null = null;
+if (v.type === "ratio") {
+  const t = tally(db, v.capability, v.key);
+  ratio = {
+    hit: t.values.find((x) => x.value === v.counts)?.count ?? 0,
+    total: t.answered,
+  };
+}
+
+// -- bars (measurements) ---------------------------------------------------
+let bars: { label: string; value: number; pct: number; highlight: boolean }[] = [];
+let barsDraft = false;
+if (v.type === "bars") {
+  const rows = db.measurementsFor(v.run, v.metric).filter((m) => m.status === "ok");
+  barsDraft = rows[0]?.run.draft ?? false;
+  const max = Math.max(...rows.map((m) => m.value_num ?? 0), 1);
+  bars = rows
+    .sort((a, b) => (a.value_num ?? 0) - (b.value_num ?? 0))
+    .slice(0, v.limit)
+    .map((m) => ({
+      label: db.subjectLabel(m.subject).name,
+      value: m.value_num ?? 0,
+      pct: Math.round(((m.value_num ?? 0) / max) * 100),
+      highlight: m.subject.id === v.highlight,
+    }));
+}
+
+// -- adoption --------------------------------------------------------------
+let ranking: { name: string; count: number; total: number }[] = [];
+if (v.type === "adoption-rank") {
+  ranking = db
+    .adoptionRanking()
+    .slice(0, v.limit)
+    .map((r) => ({ name: r.pkg.name, count: r.agents.length, total: db.agents.length }));
+}
+---
+
+<a class={`card${card.wide ? " wide" : ""}`} href={card.href}>
+  <div class="vis">
+    {
+      v.type === "coverage-matrix" && matrix && (
+        <div class="mx">
+          <div class="hdr">
+            <span />
+            <span class="a">{matrix.agents.map((a) => a.name.toUpperCase()).join(" · ")}</span>
+          </div>
+          {matrix.rows.map((row) => (
+            <div class="rw">
+              <span class="l">{row.capability.name}</span>
+              <span
+                class="c"
+                style={`grid-template-columns:repeat(${matrix!.agents.length},1fr)`}
+              >
+                {row.cells.map((cell) => (
+                  <i class={cell === "full" ? "f" : cell === "partial" ? "p" : ""} />
+                ))}
+              </span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      v.type === "observation-lines" && (
+        <div class="code">
+          {lines.map((line) => (
+            <div class={line.absent ? "off" : ""}>
+              <span class="k">{line.owner}</span>
+              <span class="v">
+                {line.prefix !== null ? (
+                  <>
+                    {line.prefix && <u>{line.prefix}</u>}
+                    {v.type === "observation-lines" ? v.sample : ""}
+                  </>
+                ) : (
+                  line.raw
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      v.type === "ratio" && ratio && (
+        <div class="ratio">
+          <div class="big tnum">
+            {ratio.hit}/{ratio.total}
+          </div>
+          <div class="sq">
+            {Array.from({ length: ratio.total }, (_, i) => (
+              <i class={i < ratio.hit ? "f" : ""} />
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    {
+      v.type === "bars" && (
+        <div class="bars">
+          {bars.map((b) => (
+            <div class={`row${b.highlight ? " on" : ""}`}>
+              <span class="l">{b.label}</span>
+              <span class="t">
+                <i style={`width:${b.pct}%`} />
+              </span>
+              <span class="v tnum">{(b.value / 1000).toFixed(1)}k</span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      v.type === "adoption-rank" && (
+        <div class="rank">
+          {ranking.map((r) => (
+            <div class="r">
+              <span class="n">{r.name}</span>
+              <span class="d">
+                {Array.from({ length: r.total }, (_, i) => (
+                  <i class={i < r.count ? "f" : ""} />
+                ))}
+              </span>
+              <span class="c tnum">
+                {r.count}/{r.total}
+              </span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      v.type === "change" && (
+        <div class="chg">
+          <span class="o">{v.from}</span>
+          <span class="arw">→</span>
+          <span class="a">{v.to}</span>
+        </div>
+      )
+    }
+  </div>
+
+  <div class="txt">
+    <div class="kind">{card.kind}</div>
+    <h3>{card.title}</h3>
+    <p>{card.blurb}</p>
+    {
+      (card.foot || barsDraft) && (
+        <div class="foot">
+          {barsDraft && <span class="badge warn">Sample data</span>}
+          {card.foot}
+        </div>
+      )
+    }
+  </div>
+</a>

@@ -1,0 +1,47 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+
+const posts = (await getCollection("posts"))
+  .filter((p) => !p.data.draft)
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+const fmt = (d: Date) => d.toLocaleDateString("en-CA");
+---
+
+<Base title="Posts — awesome-agent-tools" description="New numbers, cross-cutting comparisons, and ecosystem changes." section="posts">
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">Posts</div>
+      <h1>New numbers, comparisons, and things that changed</h1>
+
+      <p class="prose">
+        Posts and capability pages have different half-lives, and mixing them up is how a site like
+        this ends up contradicting itself. A post is a snapshot: it copies the figures it cites and
+        freezes them, so it still makes sense in a year. A capability page is maintained, and its
+        numbers follow the database. When a post produces new data, the data goes into the database
+        and the capability page moves — the post stays exactly as published.
+      </p>
+
+      {
+        posts.length === 0 ? (
+          <p class="prose">
+            <b>Nothing published yet.</b>
+          </p>
+        ) : (
+          <div class="list">
+            {posts.map((p) => (
+              <a class="item" href={`/posts/${p.id}`}>
+                <span class="ttl">
+                  {p.data.title}
+                  <span class="dsc">{p.data.lede}</span>
+                </span>
+                <span class="dt">{fmt(p.data.date)}</span>
+              </a>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </div>
+</Base>

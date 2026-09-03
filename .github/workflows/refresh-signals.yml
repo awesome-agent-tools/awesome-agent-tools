@@ -1,0 +1,44 @@
+name: Refresh cheap signals
+
+# Weekly, opening a PR rather than pushing. Signals are inputs to editorial
+# judgement about where to spend measurement effort — a jump in one is worth a
+# human noticing, not a silent commit.
+on:
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run refresh-signals
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: npm run check
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: refresh stars and last-commit dates"
+          title: "chore: refresh cheap signals"
+          body: |
+            Automated weekly refresh of stars and last-commit dates.
+
+            These only decide where measurement effort goes. Worth a glance for
+            anything that moved sharply; not worth reading line by line.
+          branch: chore/refresh-signals
+          delete-branch: true

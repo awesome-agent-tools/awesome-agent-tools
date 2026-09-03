@@ -1,0 +1,319 @@
+# The registry of things we record about a tool.
+#
+# `class` is the load-bearing field. An `invariant` is something every
+# implementation should hold to — violating it is a bug, and the site is
+# allowed to render it as pass/fail. A `design-choice` is somewhere
+# implementations legitimately differ; it is recorded and never judged.
+#
+# Getting that line right is the actual contribution. Qwen's 0-indexed read is
+# a choice, not a failure. "Pagination does not reassemble into the original
+# file" would be a failure, and no amount of intent makes it one.
+#
+# `headline` marks facts that clear all four filters in product.md §5: changes
+# a decision, not derivable from cheap signals, invisible to the user, and
+# compressible to one number or sentence.
+
+# ---------------------------------------------------------------- read · shape
+- key: dedicated_tool
+  label: Dedicated read tool
+  group: Output shape
+  capability: read
+  type: string
+  class: design-choice
+  order: 10
+  # Every tool's name differs from every other tool's name; saying so on a tool
+  # page would be noise dressed up as a finding.
+  divergence: false
+  description: The tool a harness registers for reading files, if it registers one at all.
+
+- key: line_number_format
+  label: Line numbering
+  group: Output shape
+  capability: read
+  type: enum
+  values: ["N + TAB", "N: ", "N|", "numbered", "none"]
+  class: design-choice
+  headline: false
+  order: 11
+  description: >-
+    How each returned line is prefixed. Knowing there are four formats is
+    interesting, but it does not change which harness anyone picks — long tail,
+    not headline.
+
+- key: output_wrapper
+  label: Output wrapper
+  group: Output shape
+  capability: read
+  type: string
+  class: design-choice
+  order: 12
+  description: What the file contents are wrapped in before reaching the model.
+
+# --------------------------------------------------------------- read · limits
+- key: default_line_cap
+  label: Default line cap
+  group: Limits
+  capability: read
+  type: string
+  class: design-choice
+  headline: false
+  order: 20
+  description: Lines returned per call before truncation. Not surprising and cheap to work around, so long tail.
+
+- key: byte_cap
+  label: Byte / char cap
+  group: Limits
+  capability: read
+  type: string
+  class: design-choice
+  order: 21
+  description: >-
+    A size ceiling alongside or instead of the line cap. Hermes argues in a
+    comment that a line cap is meaningless for logs, wide CSVs and minified
+    code, and budgets characters instead.
+
+- key: per_line_cap
+  label: Per-line cap
+  group: Limits
+  capability: read
+  type: string
+  class: design-choice
+  order: 22
+
+- key: limit_precedence
+  label: Whichever hits first
+  group: Limits
+  capability: read
+  type: string
+  class: design-choice
+  order: 23
+  description: Which ceiling ends the read when a file could trip more than one.
+
+# ----------------------------------------------------------- read · pagination
+- key: offset_base
+  label: Offset base
+  group: Pagination
+  capability: read
+  type: enum
+  values: ["0-indexed", "1-indexed"]
+  class: design-choice
+  headline: true
+  order: 30
+  description: >-
+    Whether offset=1 means the first line or the second. Completely invisible to
+    the person building on it, right up until every read is off by one.
+
+- key: negative_offset_tail
+  label: Negative offset reads the tail
+  short: Negative offset = tail
+  group: Pagination
+  capability: read
+  type: string
+  class: design-choice
+  order: 31
+
+- key: announces_truncation
+  label: Announces truncation
+  short: Announces truncation
+  group: Pagination
+  capability: read
+  type: boolean
+  class: invariant
+  holds_when: "true"
+  headline: true
+  order: 32
+  description: >-
+    A model that cannot tell a partial read from a whole file will confidently
+    reason about code it never saw. Silent truncation is a defect in any
+    implementation, which is why this is an invariant rather than a choice.
+
+- key: continuation_hint
+  label: Continuation hint
+  group: Pagination
+  capability: read
+  type: string
+  class: design-choice
+  order: 33
+  description: The literal text used to tell the model there is more to read.
+
+- key: reports_total_lines
+  label: Reports total lines
+  group: Pagination
+  capability: read
+  type: string
+  class: design-choice
+  order: 34
+
+- key: out_of_range_offset
+  label: Out-of-range offset
+  group: Pagination
+  capability: read
+  type: string
+  class: design-choice
+  order: 35
+
+# ------------------------------------------------------------- read · non-text
+- key: binary_not_silent
+  label: Binary content never enters context silently
+  short: Binary not silent
+  group: Non-text
+  capability: read
+  type: boolean
+  class: invariant
+  holds_when: "true"
+  headline: true
+  order: 40
+  description: >-
+    Reading a binary file should refuse or announce itself, not quietly spend
+    the context window on bytes the model cannot use.
+
+- key: binary_handling
+  label: Binary files
+  group: Non-text
+  capability: read
+  type: string
+  class: design-choice
+  order: 41
+
+- key: image_handling
+  label: Images
+  group: Non-text
+  capability: read
+  type: string
+  class: design-choice
+  order: 42
+  description: Inline, attachment, or a separate tool — a genuine fork in the design, not a defect either way.
+
+- key: pdf_handling
+  label: PDFs
+  group: Non-text
+  capability: read
+  type: string
+  class: design-choice
+  order: 43
+
+- key: notebook_handling
+  label: Notebooks
+  group: Non-text
+  capability: read
+  type: string
+  class: design-choice
+  order: 44
+
+- key: giant_line_handling
+  label: Giant single line
+  group: Non-text
+  capability: read
+  type: string
+  class: design-choice
+  order: 45
+
+# --------------------------------------------------------------- read · errors
+- key: missing_path_behavior
+  label: Missing path
+  short: Missing path
+  group: Errors
+  capability: read
+  type: string
+  class: design-choice
+  order: 50
+
+- key: directory_path_behavior
+  label: Path is a directory
+  short: Path is a directory
+  group: Errors
+  capability: read
+  type: string
+  class: design-choice
+  order: 51
+
+- key: empty_file_behavior
+  label: Empty file
+  group: Errors
+  capability: read
+  type: string
+  class: design-choice
+  order: 52
+
+- key: non_vision_model_behavior
+  label: Non-vision model
+  short: Non-vision model
+  group: Errors
+  capability: read
+  type: string
+  class: design-choice
+  order: 53
+
+# ---------------------------------------------------------- read · correctness
+- key: mixed_line_endings
+  label: Mixed line endings
+  group: Correctness
+  capability: read
+  type: string
+  class: design-choice
+  order: 60
+
+- key: reread_dedup
+  label: Re-read dedup
+  group: Correctness
+  capability: read
+  type: string
+  class: design-choice
+  order: 61
+
+- key: staleness_check
+  label: Staleness check before write
+  short: Staleness check
+  group: Correctness
+  capability: read
+  type: boolean
+  class: invariant
+  holds_when: "true"
+  headline: true
+  order: 62
+  description: >-
+    If the file changed after the agent read it, the write should not go through
+    unnoticed. Without this an agent silently overwrites whatever happened in
+    between — invisible to the user until data is gone.
+
+- key: line_number_guard
+  label: Line-number contamination guard
+  short: Line-number guard
+  group: Correctness
+  capability: read
+  type: string
+  class: design-choice
+  order: 63
+  description: >-
+    Whether anything stops the model writing the `1|` prefix back into the file.
+    Two harnesses guard against it in two different places; neither has data on
+    how often it happens.
+
+- key: multi_file_read
+  label: Multi-file read
+  group: Correctness
+  capability: read
+  type: string
+  class: design-choice
+  order: 64
+
+# -------------------------------------------------------- read · side effects
+- key: warms_lsp
+  label: Warms LSP on read
+  group: Side effects
+  capability: read
+  type: string
+  class: design-choice
+  order: 70
+
+- key: injects_instruction_files
+  label: Injects nearby instruction files
+  short: Injects instruction files
+  group: Side effects
+  capability: read
+  type: string
+  class: design-choice
+  order: 71
+  description: >-
+    Whether reading a file also pulls AGENTS.md / CLAUDE.md into context. A read
+    tool that quietly adds instructions is doing two jobs.

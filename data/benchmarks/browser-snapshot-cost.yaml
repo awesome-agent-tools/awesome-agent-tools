@@ -1,0 +1,25 @@
+name: Browser snapshot cost
+capability: browser
+question: What does one page observation cost, and what does the server charge before it does anything?
+
+# No runs exist yet. This file is the protocol, written before the numbers so
+# the numbers cannot be shaped to fit a story. The first run publishes into a
+# post, and that post becomes this protocol's methodology page.
+versions:
+  - version: v1
+    protocol: >-
+      For each candidate, install the server into a clean harness and record
+      tool-count (tools registered) and schema-tokens (the serialised tool
+      schemas, tokenised with o200k_base) before any call is made. Then drive
+      the three fixture pages below: navigate, take one observation with the
+      server's default observation tool at default settings, and tokenise the
+      full tool result. Report the median of the three pages as
+      snapshot-tokens. No model is invoked — this is characterisation, not
+      behaviour, so the numbers are exact rather than distributional.
+      Record failures to install as status:error with a note; a server that
+      cannot be installed is a finding, not a blank cell.
+    fixtures_ref: fixtures/browser-snapshot-cost/v1
+    emits:
+      - snapshot-tokens
+      - tool-count
+      - schema-tokens

@@ -1,0 +1,56 @@
+---
+import Base from "../../layouts/Base.astro";
+import { loadDb } from "../../lib/db";
+
+const db = loadDb();
+
+// Grouped by owner: the row unit everywhere on this site is the product that
+// ships the tool, not the vendor behind it.
+const groups = [...db.agents]
+  .sort((a, b) => a.name.localeCompare(b.name))
+  .map((agent) => ({ owner: agent, tools: db.toolsByOwner("agent", agent.id) }))
+  .filter((g) => g.tools.length > 0);
+
+const withObservations = db.tools.filter((t) => t.observations.length > 0).length;
+---
+
+<Base
+  title="All tools — awesome-agent-tools"
+  description="Every tool on file, grouped by the product that registers it."
+  section="tools"
+>
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">Tools</div>
+      <h1>{db.tools.length} tools on file</h1>
+
+      <p class="prose">
+        Names are verbatim, casing untouched — the literal string is data, because models carry
+        priors about what a tool called <code>Read</code> does versus one called{" "}
+        <code>file_editor</code>. {withObservations} of these have been read from source in detail;
+        the rest are inventory, recorded so the coverage maths is honest.
+      </p>
+
+      {
+        groups.map(({ owner, tools }) => (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>
+                <a href={`/agents/${owner.id}`}>{owner.name}</a>
+              </h2>
+              <div class="rule" />
+              <span class="note">{tools.length}</span>
+            </div>
+            <div class="chips" style="justify-content:flex-start;margin-bottom:26px">
+              {tools.map((t) => (
+                <a href={t.href} class="mono" title={t.capabilities.map((c) => c.id).join(", ")}>
+                  {t.exposed_name}
+                </a>
+              ))}
+            </div>
+          </>
+        ))
+      }
+    </div>
+  </div>
+</Base>

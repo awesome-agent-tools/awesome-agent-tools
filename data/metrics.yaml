@@ -1,0 +1,35 @@
+# What we measure. A metric earns its place by being something a builder is
+# already paying for without being able to see the bill.
+#
+# Nothing here has been run yet — these define the protocol for the first
+# measurement pass, and no numbers exist until a file lands in data/runs/.
+
+- id: snapshot-tokens
+  name: Tokens per page snapshot
+  unit: tokens
+  type: number
+  lower_is_better: true
+  why: >-
+    Every browser step spends this again. Over a long task it decides whether
+    the agent reaches the end or drowns in its own transcript. Nobody sees the
+    number today because it is buried inside a tool result.
+
+- id: tool-count
+  name: Tool slots consumed
+  unit: tools
+  type: number
+  lower_is_better: true
+  why: >-
+    Installing a server does not cost one tool, it costs however many that
+    server registers. Models get measurably worse at choosing as the list grows,
+    and the count is invisible until you go looking.
+
+- id: schema-tokens
+  name: Resident schema tokens
+  unit: tokens
+  type: number
+  lower_is_better: true
+  why: >-
+    Tool schemas sit in context on every single turn, whether or not the tool is
+    ever called. This is the rent an installed server charges before it does any
+    work.

@@ -1,0 +1,81 @@
+---
+import "@fontsource-variable/inter";
+import "@fontsource-variable/jetbrains-mono";
+import "../styles/global.css";
+import { loadDb } from "../lib/db";
+import { getCollection } from "astro:content";
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Which nav axis to mark as current. */
+  section?: "capabilities" | "agents" | "tools" | "runs" | "posts";
+}
+
+const { title, description, section } = Astro.props;
+
+const db = loadDb();
+const posts = (await getCollection("posts")).filter((p) => !p.data.draft);
+const updated = db.lastUpdated();
+
+// The nav is the data model's axes. Counts live on the pages themselves rather
+// than in the chrome, where they sat on every page whether or not they were the
+// point of it.
+const axes = [
+  { key: "tools", label: "Tools", href: "/tools" },
+  { key: "agents", label: "Agents", href: "/agents" },
+] as const;
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="application/rss+xml" title="awesome-agent-tools" href="/rss.xml" />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="bd">
+        <div class="in">
+          <a class="logo" href="/">awesome<i>·</i>agent<i>·</i>tools</a>
+          <nav class="nav" aria-label="Sections">
+            {
+              axes.map((a) => (
+                <a href={a.href} aria-current={section === a.key ? "page" : undefined}>
+                  {a.label}
+                </a>
+              ))
+            }
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <div class="bd">
+      <footer class="site">
+        <a href="/llms.txt">llms.txt</a>
+        <a href="https://github.com/xiaoyuanzhu-com/awesome-agent-tools">GitHub</a>
+        <span class="r">UPDATED {fmt(updated)}</span>
+      </footer>
+    </div>
+  </body>
+</html>

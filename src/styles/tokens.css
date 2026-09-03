@@ -1,0 +1,31 @@
+/* Design tokens, ported verbatim from docs/ui-poc.html (v5).
+   All-grey on purpose: hierarchy comes from size, weight, whitespace and hairlines,
+   never from colour. If you find yourself reaching for a hue, reach for weight instead. */
+:root {
+  --sans: "Inter Variable", "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ink: #0b0c0e;
+  --body: #3b3f45;
+  --mute: #74787e;
+  --faint: #9ba0a6;
+  --ghost: #c4c7cb;
+  --line: #e6e7e9;
+  --line2: #f1f1f2;
+  --bg: #fcfcfd;
+  --panel: #f6f6f7;
+
+  --fill: #e4e5e7;
+  --fill2: #e9eaeb;
+  --dot: #dedfe1;
+
+  --measure: 32em;
+  --page: 1060px;
+  --gutter: 36px;
+}
+
+@media (max-width: 620px) {
+  :root {
+    --gutter: 20px;
+  }
+}

@@ -1,0 +1,59 @@
+# Homepage cards. Every visual here is a query against data/ — that is the
+# whole difference between this and a list of links.
+#
+# There are four cards, not six, because there are four things we have actually
+# established. A card whose numbers are illustrative would need a run marked
+# draft: true and would render a SAMPLE badge; none of these are.
+
+- kind: Database
+  title: 13 agents, 6 capabilities, who has what
+  blurb: >-
+    Grey is absent. Codex has no read tool and goes through the shell; half the
+    harnesses have no long-term memory at all. This table is the floor every
+    comparison page is built on.
+  href: /tools/read
+  foot: 235 tools on file · every row read from source
+  wide: true
+  visual:
+    type: coverage-matrix
+
+- kind: Comparison · read
+  title: Nine read tools, four line-number formats
+  blurb: >-
+    Two harnesses guard against the model writing the prefix back into your
+    source file. They picked two different places to do it, and neither has data
+    on how often it happens.
+  href: /tools/read#line_number_format
+  foot: Read from source, September 2026
+  visual:
+    type: observation-lines
+    capability: read
+    key: line_number_format
+    limit: 6
+    sample: import fs
+
+- kind: Finding
+  title: Most read tools will let you overwrite someone else's edit
+  blurb: >-
+    If the file changes after the agent reads it, the write goes through anyway.
+    You find out when the data is already gone.
+  href: /tools/read#staleness_check
+  foot: An invariant, not a preference
+  visual:
+    type: ratio
+    capability: read
+    key: staleness_check
+    counts: "false"
+
+- kind: Finding
+  title: One read tool in nine counts from zero
+  blurb: >-
+    Qwen Code's read_file is 0-indexed; everything else that answers the
+    question is 1-indexed. Nothing surfaces this until a line is off by one.
+  href: /tools/read#offset_base
+  foot: A design choice, recorded not judged
+  visual:
+    type: ratio
+    capability: read
+    key: offset_base
+    counts: 0-indexed

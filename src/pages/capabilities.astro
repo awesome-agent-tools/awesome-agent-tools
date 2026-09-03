@@ -1,0 +1,63 @@
+---
+import Base from "../layouts/Base.astro";
+import { loadDb } from "../lib/db";
+
+const db = loadDb();
+const rows = db.capabilities.map((capability) => {
+  const tools = db.toolsByCapability(capability.id);
+  const keys = db.keysForCapability(capability.id);
+  const studied = tools.filter((t) =>
+    t.observations.some((o) => db.observationKey(o.key)?.capability === capability.id),
+  );
+  return { capability, tools, keys, studied };
+});
+---
+
+<Base
+  title="Capabilities — awesome-agent-tools"
+  description="Each capability is one comparison page. Six of them, deliberately."
+  section="capabilities"
+>
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">Capabilities</div>
+      <h1>Six comparisons, one per thing worth comparing</h1>
+
+      <p class="prose">
+        A capability here is the unit of a comparison page, not a slot in a taxonomy. The test for
+        adding one is whether you can write the question its page answers. The tool matrix records
+        plenty of finer-grained functions — todo lists, subagent spawning, approval flows — and those
+        stay ordinary tools until there is a comparison worth reading.
+      </p>
+
+      <div class="scroller">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Capability</th>
+              <th>The question it answers</th>
+              <th class="num">Tools</th>
+              <th class="num">Read from source</th>
+              <th class="num">Dimensions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              rows.map(({ capability, tools, keys, studied }) => (
+                <tr>
+                  <td class="nm">
+                    <a href={`/tools/${capability.id}`}>{capability.name}</a>
+                  </td>
+                  <td class="dim wrap">{capability.question}</td>
+                  <td class="num">{tools.length}</td>
+                  <td class="num">{studied.length}</td>
+                  <td class="num">{keys.length || "—"}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Base>

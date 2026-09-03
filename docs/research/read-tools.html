@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>read tool — cross-harness comparison</title>
+<style>
+  :root{--bg:#0d0f12;--line:#242a33;--line2:#1b2027;--fg:#e6e9ee;--dim:#7d8794;
+        --accent:#7cc4ff;--val:#9fe6b0;--warn:#ffcf7a;--none:#3d434c;--sticky:#11141a;}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Inter,system-ui,sans-serif}
+  header{padding:16px 16px 12px;border-bottom:1px solid var(--line)}
+  h1{margin:0 0 5px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  p.sub{margin:0;font-size:12.5px;color:var(--dim);line-height:1.5}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--dim)}
+  .wrap{overflow:auto;max-height:calc(100vh - 132px)}
+  table{border-collapse:separate;border-spacing:0;font-size:11.5px;min-width:1080px}
+  th,td{padding:6px 9px;border-bottom:1px solid var(--line2);vertical-align:top;white-space:normal}
+  thead th{position:sticky;top:0;z-index:3;background:var(--sticky);border-bottom:1px solid var(--line);
+    font-size:10.5px;font-weight:650;letter-spacing:.03em;text-transform:uppercase;color:var(--accent);
+    text-align:left;white-space:nowrap}
+  thead th span{display:block;font-size:9.5px;color:var(--dim);font-weight:500;text-transform:none;letter-spacing:0}
+  th.rowhead,td.rowhead{position:sticky;left:0;z-index:2;background:var(--sticky);border-right:1px solid var(--line);
+    font-weight:550;min-width:172px;line-height:1.3}
+  thead th.rowhead{z-index:4}
+  tr.sec td{position:sticky;left:0;background:#171b21;color:var(--accent);font-size:10px;font-weight:700;
+    letter-spacing:.09em;text-transform:uppercase;padding:9px 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  td.c{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.6px;color:var(--val);line-height:1.35;min-width:104px}
+  td.w{font-family:ui-monospace,monospace;font-size:10.6px;color:var(--warn);line-height:1.35}
+  td.n{color:var(--none);text-align:center}
+  td.q{color:var(--dim);text-align:center;font-style:italic}
+  tbody tr:hover td{background:#171a20}
+  tbody tr:hover td.rowhead{background:#1b1f26}
+  footer{padding:12px 16px 24px;font-size:11px;color:var(--dim);border-top:1px solid var(--line);line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <h1>The <code>read</code> tool, nine implementations, read from source</h1>
+  <p class="sub">Constants and behaviors extracted from each repo at HEAD (Sept 2026). Claude Code from its own runtime. <code>?</code> = not verified.</p>
+  <div class="legend">
+    <span style="color:var(--val)">green = verified in source</span>
+    <span style="color:var(--warn)">amber = notable divergence</span>
+    <span style="color:var(--none)">— = absent</span>
+    <span style="color:var(--dim)">? = unverified</span>
+  </div>
+</header>
+<div class="wrap"><table id="t"></table></div>
+<footer>
+Not included — could not verify from source: OpenHands (<code>file_editor</code> view mode), OpenClaw (<code>read</code>), Grok Build (<code>read_file</code>; global tool caps are 40&nbsp;KB / 20k chars), ZCode (<code>Read</code>, no public repo reachable).
+</footer>
+<script>
+const AGENTS=[["Claude Code","Read"],["Codex","(none)"],["pi","read"],["opencode","read"],
+ ["Hermes","read_file"],["Kimi Code","read"],["dsh","read"],["Qwen Code","read_file"],["MiMo Code","read"]];
+// "" absent | "?" unknown | "!text" divergence | "text"
+const DATA=[
+["Shape of the output",[
+ ["Dedicated read tool",["Read","!none — cat/sed via exec_command","read","read","read_file","read","read","read_file","read"]],
+ ["Line numbering",["N + TAB (cat -n)","!none (raw bytes)","!none","N: ","N|","N + TAB","numbered","?","N: "]],
+ ["Output wrapper",["plain","raw stdout","plain","<path>/<type>/<content>","plain","plain","plain","plain","<path>/<type>/<content>"]],
+]],
+["Limits",[
+ ["Default line cap",["2000","!none","2000","2000","2000","!1000","2000","?","2000"]],
+ ["Byte / char cap",["—","none","50 KB","50 KB","!100k chars (not lines)","100 KB","?","?","50 KB"]],
+ ["Per-line cap",["2000 chars","none","—","2000 chars","—","2000 chars","?","?","2000 chars"]],
+ ["Whichever-hits-first",["lines","—","lines or bytes","lines or bytes","chars","lines or bytes","?","?","lines or bytes"]],
+]],
+["Pagination",[
+ ["Offset base",["1-indexed","n/a","1-indexed","1-indexed","1-indexed","1-indexed","1-indexed","!0-indexed","1-indexed"]],
+ ["Negative offset = tail",["","","","","","!yes (−1..−1000)","","",""]],
+ ["Continuation hint",["on truncation","—","[Showing X-Y of N. Use offset=Z]","(Showing X-Y of N. Use offset=Z)","next_offset","wasTruncated + truncatedLineNumbers","?","(truncated)","(Showing X-Y of N. Use offset=Z)"]],
+ ["Reports total lines",["?","—","yes","yes (End of file - total N)","?","?","?","linesShown[]","yes"]],
+ ["Out-of-range offset",["?","n/a","?","explicit error w/ line count","?","?","?","?","explicit error w/ line count"]],
+]],
+["Non-text handling",[
+ ["Binary files",["refuse","!raw bytes into context","?","error: Cannot read binary file","?","?","UTF-8 only","?","error: Cannot read binary file"]],
+ ["Images",["inline","separate view_image","attachment, auto-resize 2000²","attachment (jpeg/png/gif/webp)","separate vision_analyze","separate read-media","separate read_image (auto-downscale)","vision bridge","attachment + mime sniff"]],
+ ["PDFs",["pages param, max 20/req","","?","attachment","?","read-media","?","page ranges + continuation","attachment"]],
+ ["Notebooks",["cells + outputs","","?","?","?","?","?","?","(notebook-edit tool)"]],
+ ["Giant single line",["per-line cap","none","!points at bash sed fallback","per-line cap","char budget absorbs it","per-line cap","?","?","per-line cap"]],
+]],
+["Error affordances",[
+ ["Missing path",["error","shell error","?","!Did you mean one of these?","?","?","?","?","!Did you mean one of these?"]],
+ ["Path is a directory",["error","lists","?","lists entries","?","?","?","?","lists entries"]],
+ ["Empty file",["explicit reminder","empty stdout","?","?","?","?","?","?","?"]],
+ ["Non-vision model",["—","—","!explicit note in output","?","?","?","requires image-capable model","?","?"]],
+]],
+["Correctness coupling",[
+ ["Mixed line endings",["?","raw","?","?","?","!renders CR visibly","?","?","?"]],
+ ["Re-read dedup",["","","","","!(path,offset,limit)→mtime, 'File unchanged since last read'","","","file read cache",""]],
+ ["Staleness / read-before-edit",["!edit requires prior read","","","","mtime compare on write","","","","read-state tracking"]],
+ ["Line-number contamination guard",["!instructs model to strip prefix","n/a (no numbers)","n/a (no numbers)","","!write-side detector rejects N| content","","","",""]],
+ ["Multi-file read",["","","","","","","concurrent batches","!read_many_files",""]],
+]],
+["Side effects",[
+ ["Warms LSP on read",["","","","yes","","","","","yes"]],
+ ["Injects nearby instruction files",["","","compact AGENTS.md/CLAUDE.md","AGENTS.md as system-reminder","","","","","AGENTS.md as system-reminder"]],
+]]];
+const t=document.getElementById('t');
+let h='<thead><tr><th class="rowhead">Dimension</th>';
+for(const [n,o] of AGENTS) h+=`<th>${n}<span>${o}</span></th>`;
+h+='</tr></thead><tbody>';
+for(const [sec,rows] of DATA){
+  h+=`<tr class="sec"><td colspan="${AGENTS.length+1}">${sec}</td></tr>`;
+  for(const [label,cells] of rows){
+    h+=`<tr><td class="rowhead">${label}</td>`;
+    for(const c of cells){
+      if(c==='') h+='<td class="n">—</td>';
+      else if(c==='?') h+='<td class="q">?</td>';
+      else if(c[0]==='!') h+=`<td class="w">${c.slice(1)}</td>`;
+      else h+=`<td class="c">${c}</td>`;
+    }
+    h+='</tr>';
+  }
+}
+t.innerHTML=h+'</tbody>';
+</script>
+</body>
+</html>

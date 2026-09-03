@@ -1,0 +1,73 @@
+---
+import Base from "../layouts/Base.astro";
+import { loadDb } from "../lib/db";
+
+const db = loadDb();
+const { agents, rows } = db.coverageMatrix();
+
+const perAgent = agents.map((agent, i) => ({
+  agent,
+  tools: db.toolsByOwner("agent", agent.id).length,
+  covered: rows.filter((r) => r.cells[i] !== "none").length,
+}));
+---
+
+<Base
+  title="Agents — awesome-agent-tools"
+  description="Thirteen coding agents, their registered tools and what they cover."
+  section="agents"
+>
+  <div class="bd">
+    <div class="cap">
+      <div class="eyebrow">Agents</div>
+      <h1>Thirteen harnesses, and what each one gives the model</h1>
+
+      <p class="prose">
+        Tool names are exactly as each harness registers them. Where a harness reaches a capability
+        without a dedicated tool — Codex reading files through the shell — it counts as partial
+        coverage rather than full.
+      </p>
+
+      <div class="scroller">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Vendor</th>
+              <th>Kind</th>
+              <th class="num">Tools</th>
+              <th class="num">Capabilities</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              perAgent.map(({ agent, tools, covered }) => (
+                <tr>
+                  <td class="nm">
+                    <a href={`/agents/${agent.id}`}>{agent.name}</a>
+                  </td>
+                  <td class="dim">{agent.vendor}</td>
+                  <td class="dim">{agent.kind}</td>
+                  <td class="num">{tools}</td>
+                  <td class="num">
+                    {covered}/{rows.length}
+                  </td>
+                  <td class="dim">
+                    {agent.repo ? (
+                      <a class="mono" href={agent.repo}>
+                        repo
+                      </a>
+                    ) : (
+                      <span class="unk">not reachable</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Base>

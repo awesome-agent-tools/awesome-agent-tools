@@ -1,0 +1,60 @@
+# A capability is the unit of a comparison page, not a taxonomy node.
+# The test for adding one: can you write the question its page answers?
+# If not, it does not belong here yet.
+#
+# Deliberately flat, deliberately short. The tool matrix records finer-grained
+# functions (todo lists, subagents, approval flows) that are not capabilities
+# yet — they become capabilities the day there is a comparison worth reading.
+
+- id: read
+  name: Read
+  question: Nine harnesses read files. What actually differs?
+  description: >-
+    Getting file contents into the model's context. Nobody picks a read tool —
+    it arrives with the harness — so this page is a reference for people
+    building the harnesses and the tools around them, not a buying guide.
+  order: 1
+
+- id: browser
+  name: Browser
+  question: I want my agent to drive a browser. Which one?
+  description: >-
+    Navigating, clicking and reading pages under model control. Unlike read,
+    this is a real choice: most browser tools arrive as separate installs, and
+    what they cost per step varies by more than an order of magnitude.
+  order: 2
+
+- id: web-search
+  name: Web search
+  question: Which harnesses can search the web without an add-on?
+  description: >-
+    Issuing a query and getting results back as text. Almost universal as a
+    built-in, which makes the interesting question what each one is wired to
+    behind the scenes.
+  order: 3
+
+- id: code-search
+  name: Code search
+  question: How does each harness find code it has not read yet?
+  description: >-
+    Locating files and matching content across a repository. The split between
+    glob-style and grep-style tools, and whether a harness gives one tool or
+    two, shapes how models explore an unfamiliar codebase.
+  order: 4
+
+- id: shell
+  name: Shell
+  question: Every harness runs shell commands. What differs underneath?
+  description: >-
+    Executing commands on the host. Universal, so the differences that matter
+    are persistence, interactivity, and whether a separate sandboxed path
+    exists.
+  order: 5
+
+- id: memory
+  name: Long-term memory
+  question: Which agents remember anything between sessions?
+  description: >-
+    Storage that outlives a single conversation. Roughly half of the harnesses
+    surveyed have no dedicated tool for it at all.
+  order: 6
