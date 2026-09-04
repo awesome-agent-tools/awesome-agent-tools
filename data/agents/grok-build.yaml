@@ -6,3 +6,5 @@ kind: cli
 repo: https://github.com/xai-org/grok-build
 adoption: []
 observations: []
+# Mark taken from https://x.ai/favicon.ico, resized to 128px and vendored into public/logos/.
+logo: /logos/grok-build.png

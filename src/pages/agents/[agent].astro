@@ -1,6 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { loadDb } from "../../lib/db";
+import { displayValue, divergences } from "../../lib/queries";
 
 export async function getStaticPaths() {
   const db = loadDb();
@@ -13,11 +14,13 @@ const agent = db.agent(agentId)!;
 const tools = db.toolsByOwner("agent", agent.id);
 
 /**
- * An index, not an argument. Comparison happens on capability pages; this page
- * exists to show what this harness registers and how those tools connect to
- * those comparisons. Every capability is listed, including the ones it has no
- * tool for — a gap is as informative as a hit, and it is invisible if absent
- * rows are simply left out.
+ * An index, not a ranking. Which harness is better is a question this site
+ * refuses (product.md §3), so nothing here scores an agent. What it does owe
+ * the reader is a lead: the shape of the surface, stated before the tables.
+ *
+ * Every capability is listed, including the ones this agent has no tool for — a
+ * gap is as informative as a hit, and it is invisible if absent rows are simply
+ * left out.
  */
 const coverage = db.capabilities.map((capability) => ({
   capability,
@@ -27,9 +30,59 @@ const coverage = db.capabilities.map((capability) => ({
 }));
 
 const covered = coverage.filter((c) => c.tools.length > 0).length;
-const byName = [...tools].sort((a, b) => a.exposed_name.localeCompare(b.exposed_name));
 const studied = tools.filter((t) => t.observations.length > 0);
+
+/* Peer context, read out of the same matrix /agents renders. Deriving it here
+   rather than counting independently is what stops the two pages from ever
+   disagreeing about how many harnesses ship a browser tool. */
+const { agents: peers, rows } = db.coverageMatrix();
+const peersWith = new Map(
+  rows.map((r) => [r.capability.id, r.cells.filter((c) => c !== "none").length]),
+);
+
+const surfaces = peers
+  .map((a) => ({ agent: a, tools: db.toolsByOwner("agent", a.id).length }))
+  .sort((a, b) => b.tools - a.tools || a.agent.name.localeCompare(b.agent.name));
+const widest = Math.max(...surfaces.map((s) => s.tools), 1);
+
+const position = peers.findIndex((a) => a.id === agent.id);
+const prev = peers[position - 1];
+const next = peers[position + 1];
+
+/* The lead sentence is assembled, never written per agent: thirteen hand-written
+   characterisations drift apart, and a derived one cannot end up contradicting
+   the table directly beneath it. `via` is not always the shell — one tool serves
+   a capability through a glob — so the phrasing stays at "indirectly" and lets
+   the table give the specific detour. */
+const indirect = coverage.filter(
+  (c) => c.tools.length > 0 && c.tools.every((t) => t.role !== "primary"),
+);
+const missing = coverage.filter((c) => c.tools.length === 0);
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+const join = (i: number, n: number, conj: string) => (i === 0 ? "" : i === n - 1 ? ` ${conj} ` : ", ");
+
+/* Divergence is the one genuinely comparative fact this page can carry without
+   becoming a ranking: it is derived against peers implementing the same
+   capability, and differing is only a defect where the key is an invariant. */
+const diverges = tools.flatMap((tool) => divergences(db, tool).map((d) => ({ tool, d })));
+
+const served = coverage.filter((c) => c.tools.length > 0);
+const uncompared = tools
+  .filter((t) => t.capabilities.length === 0)
+  .sort((a, b) => a.exposed_name.localeCompare(b.exposed_name));
+
 const fmt = (d: Date) => d.toLocaleDateString("en-CA");
+
+/* A byline rather than the bordered .meta strip the tool pages use: most agents
+   here carry only a repo, and a two-rule band holding one word reads as an empty
+   band rather than as a header. */
+const repoLabel = agent.repo?.replace(/^https?:\/\//, "").replace(/\/$/, "");
+const facts = [
+  agent.language,
+  agent.license,
+  agent.stars !== undefined ? `${agent.stars.toLocaleString()} stars` : undefined,
+  agent.last_commit ? `last commit ${fmt(agent.last_commit)}` : undefined,
+].filter((f): f is string => Boolean(f));
 ---
 
 <Base
@@ -40,28 +93,145 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
   <div class="bd">
     <div class="cap">
       <div class="eyebrow">Agent · {agent.vendor} · {agent.kind}</div>
-      <h1>{agent.name}</h1>
 
-      <div class="meta">
-        <span class="tnum">{tools.length} tools</span>
-        <span class="tnum">{covered} of {db.capabilities.length} capabilities</span>
-        {studied.length > 0 && <span class="tnum">{studied.length} read from source</span>}
-        {agent.repo && <a href={agent.repo}>repo</a>}
-        {agent.language && <span>{agent.language}</span>}
-        {agent.license && <span>{agent.license}</span>}
-        {agent.stars !== undefined && <span class="tnum">{agent.stars.toLocaleString()} stars</span>}
-        {agent.last_commit && <span>last commit {fmt(agent.last_commit)}</span>}
+      {/* The mark is here to answer "am I on the right page" at a glance, which
+          is the one job a logo does better than a name. It is decoration, so it
+          is hidden from assistive tech — the h1 beside it already says which
+          agent this is. */}
+      <div class="titleline">
+        {agent.logo && <img class="mark lg" src={agent.logo} alt="" aria-hidden="true" />}
+        <h1>{agent.name}</h1>
       </div>
 
+      {/* Identity and provenance only — the counts moved into the KPI row below,
+          where they read as the lead rather than as chrome. */}
       {
-        !agent.source_available && (
-          <p class="prose">
-            <b>Not source-verified.</b> No public repository was reachable for {agent.name}, so its
-            tool list comes from secondary reporting. Treat it as weaker evidence than the other
-            agents here.
+        (agent.repo || facts.length > 0) && (
+          <p class="method" style="margin:0 0 30px">
+            {agent.repo && <a href={agent.repo}>{repoLabel}</a>}
+            {agent.homepage && (
+              <>
+                {agent.repo && " · "}
+                <a href={agent.homepage}>homepage</a>
+              </>
+            )}
+            {facts.map((f, i) => (
+              <>{i > 0 || agent.repo || agent.homepage ? " · " : ""}{f}</>
+            ))}
           </p>
         )
       }
+
+      <div class="kpi">
+        <div>
+          <div class="n tnum">{tools.length}</div>
+          <div class="l">tools registered</div>
+        </div>
+        <div>
+          <div class="n tnum">{covered}/{db.capabilities.length}</div>
+          <div class="l">compared capabilities<br />it has a tool for</div>
+        </div>
+        {
+          studied.length > 0 && (
+            <div>
+              <div class="n tnum">{studied.length}</div>
+              <div class="l">
+                of those tools
+                <br />
+                read from source
+              </div>
+            </div>
+          )
+        }
+      </div>
+
+      <p class="prose" style="margin-top:26px">
+        {agent.name} registers <b>{tools.length} tools</b>, covering <b>{covered} of {
+          db.capabilities.length
+        }</b> compared capabilities.
+        {
+          indirect.length > 0 && (
+            <>
+              {" "}
+              It reaches{" "}
+              {indirect.map((c, i) => (
+                <>
+                  {join(i, indirect.length, "and")}
+                  <a href={`/tools/${c.capability.id}`}>{lower(c.capability.name)}</a>
+                </>
+              ))}{" "}
+              indirectly, through a tool built for something else.
+            </>
+          )
+        }
+        {
+          missing.length > 0 && (
+            <>
+              {" "}
+              It registers no built-in tool for{" "}
+              {missing.map((c, i) => (
+                <>
+                  {join(i, missing.length, "or")}
+                  <a href={`/tools/${c.capability.id}`}>{lower(c.capability.name)}</a>
+                </>
+              ))}
+              .
+            </>
+          )
+        }
+      </p>
+
+      {/* Where the tool list came from when it was not the published source. One
+          paragraph, not two: an agent with no reachable repo usually also carries
+          a note saying so, and printing both said the same thing twice. The note
+          is the agent's own words, so it wins where it exists. */}
+      {
+        !agent.source_available && (
+          <p class="prose">
+            <b>Not source-verified.</b>{" "}
+            {agent.notes ??
+              `No public repository was reachable for ${agent.name}, so its tool list comes from secondary reporting. Treat it as weaker evidence than the other agents here.`}
+          </p>
+        )
+      }
+      {
+        agent.source_available && agent.notes && (
+          <p class="prose">
+            <b>How this list was established.</b> {agent.notes}
+          </p>
+        )
+      }
+
+      <div class="sech" style="padding-top:0">
+        <h2>Surface size</h2>
+        <div class="rule"></div>
+        <span class="note">tools registered, across the {peers.length} harnesses here</span>
+      </div>
+
+      <div class="bars">
+        {
+          surfaces.map((s) => (
+            <div class={s.agent.id === agent.id ? "row on" : "row"}>
+              <div class="l">
+                {s.agent.id === agent.id ? s.agent.name : <a href={`/agents/${s.agent.id}`}>{s.agent.name}</a>}
+              </div>
+              <div class="t">
+                <i style={`width:${((s.tools / widest) * 100).toFixed(1)}%`} />
+              </div>
+              <div class="v tnum">{s.tools}</div>
+            </div>
+          ))
+        }
+      </div>
+
+      {/* Sorted by size so it reads as a distribution. The caption is load-bearing:
+          without it a descending bar chart is a leaderboard, which is exactly what
+          this site does not do. */}
+      <p class="method" style="max-width:660px;line-height:1.65">
+        Surface size, not quality. Every registered tool spends context on every request, so a longer
+        bar is a cost as much as a capability — and a harness that reaches a capability through a
+        general tool may register fewer.
+      </p>
 
       <div class="sech" style="padding-top:0">
         <h2>Capabilities</h2>
@@ -73,51 +243,105 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
         <table class="data cov">
           <thead>
             <tr>
-              <th style="width:180px">Capability</th>
+              <th style="width:190px">Capability</th>
               <th style="width:46%">Tools</th>
-              <th>Compare</th>
+              <th>Across harnesses</th>
             </tr>
           </thead>
           <tbody>
             {
-              coverage.map(({ capability, tools: capTools }) => (
-                <tr class={capTools.length === 0 ? "gap" : undefined}>
-                  <td class="nm">{capability.name}</td>
-                  <td class="wrap">
-                    {capTools.length === 0 ? (
-                      <span class="none">no built-in tool</span>
-                    ) : (
-                      capTools.map(({ tool, role }, i) => (
-                        <>
-                          {i > 0 && <span class="sep"> · </span>}
-                          <a class="mono" href={tool.href}>
-                            {tool.exposed_name}
-                          </a>
-                          {/* "primary" is the overwhelming default; saying it on
-                              every row would bury the rows where it is not. */}
-                          {role !== "primary" && <span class="role">{role}</span>}
-                        </>
-                      ))
-                    )}
-                    {/* Only explain the detour where there is one. exec_command
-                        is Codex's shell tool outright, and is only a stand-in
-                        on the rows where it stands in for something else. */}
-                    {(() => {
-                      const detour = capTools.find(({ tool, role }) => tool.via && role !== "primary");
-                      return detour ? <div class="via">{detour.tool.via}</div> : null;
-                    })()}
-                  </td>
-                  <td class="dim">
-                    <a href={`/tools/${capability.id}`}>
-                      {db.toolsByCapability(capability.id).length} across agents →
-                    </a>
-                  </td>
-                </tr>
-              ))
+              coverage.map(({ capability, tools: capTools }) => {
+                const dedicated = capTools.some(({ role }) => role === "primary");
+                const withIt = peersWith.get(capability.id) ?? 0;
+                return (
+                  <tr class={capTools.length === 0 ? "gap" : undefined}>
+                    <td class="nm">
+                      <span
+                        class={`swatch${capTools.length === 0 ? "" : dedicated ? " f" : " p"}`}
+                        aria-hidden="true"
+                      />
+                      {capability.name}
+                    </td>
+                    <td class="wrap">
+                      {capTools.length === 0 ? (
+                        <span class="none">no built-in tool</span>
+                      ) : (
+                        capTools.map(({ tool, role }, i) => (
+                          <>
+                            {i > 0 && <span class="sep"> · </span>}
+                            <a class="mono" href={tool.href}>
+                              {tool.exposed_name}
+                            </a>
+                            {/* "primary" is the overwhelming default; saying it on
+                                every row would bury the rows where it is not. */}
+                            {role !== "primary" && <span class="role">{role}</span>}
+                          </>
+                        ))
+                      )}
+                      {/* Only explain the detour where there is one. exec_command
+                          is Codex's shell tool outright, and is only a stand-in
+                          on the rows where it stands in for something else. */}
+                      {(() => {
+                        const detour = capTools.find(({ tool, role }) => tool.via && role !== "primary");
+                        return detour ? <div class="via">{detour.tool.via}</div> : null;
+                      })()}
+                    </td>
+                    {/* How many peers have anything at all for this row, so a gap
+                        reads as either unusual or entirely normal. Six repetitions
+                        of the same tool count said neither. */}
+                    <td class="cmp">
+                      <a href={`/tools/${capability.id}`}>
+                        <b>
+                          {withIt} of {peers.length}
+                        </b>{" "}
+                        have one →
+                      </a>
+                    </td>
+                  </tr>
+                );
+              })
             }
           </tbody>
         </table>
       </div>
+
+      {
+        diverges.length > 0 && (
+          <>
+            <div class="sech" style="padding-top:0">
+              <h2>Where its tools differ from the rest</h2>
+              <div class="rule" />
+            </div>
+            <div class="diverge" style="border-top:0;padding-top:0">
+              <ul>
+                {diverges.map(({ tool, d }) => (
+                  <li>
+                    <span class="k">
+                      <a class="mono" href={tool.href}>
+                        {tool.exposed_name}
+                      </a>{" "}
+                      · {d.key.label}
+                      {d.key.class === "invariant" && (
+                        <span class="badge" style="margin-left:6px">
+                          invariant
+                        </span>
+                      )}
+                    </span>
+                    <span class="mine">{displayValue(d.key, d.mine)}</span>
+                    <span class="rest">
+                      vs {displayValue(d.key, d.majority)} in {d.majorityCount} of {d.peers}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p class="prose" style="font-size:13px;color:var(--mute);margin-top:14px">
+                Derived by comparing every recorded value against the other implementations of the
+                same capability. Differing is not a defect unless the row is marked an invariant.
+              </p>
+            </div>
+          </>
+        )
+      }
 
       {
         agent.adoption.length > 0 && (
@@ -165,29 +389,72 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
         <span class="note">names verbatim, as registered</span>
       </div>
 
-      <div class="toolgrid">
+      {/* Grouped by what each tool serves rather than alphabetically. A flat list
+          of thirty-three names hides the two facts worth seeing: which single
+          tool is carrying three capabilities, and how much of the surface is not
+          compared here at all. */}
+      <div class="inv">
         {
-          byName.map((t) => (
-            <a href={t.href}>
-              <span class="tn">{t.exposed_name}</span>
-              {/* One label only — the table above carries the full mapping, and
-                  a three-capability tag here squeezes out the tool's own name. */}
-              {t.capabilities.length > 0 && (
-                <span class="tc">
-                  {db.capability(t.capabilities[0].id)?.name}
-                  {t.capabilities.length > 1 && ` +${t.capabilities.length - 1}`}
-                </span>
-              )}
-            </a>
+          served.map(({ capability, tools: capTools }) => (
+            <div class="grp">
+              <div class="l">
+                <a href={`/tools/${capability.id}`}>{capability.name}</a>
+              </div>
+              <div class="t">
+                {capTools.map(({ tool, role }) => (
+                  <a href={tool.href}>
+                    {tool.exposed_name}
+                    {role !== "primary" && <span class="role">{role}</span>}
+                  </a>
+                ))}
+              </div>
+            </div>
           ))
+        }
+        {
+          uncompared.length > 0 && (
+            <div class="grp">
+              <div class="l">Not yet compared</div>
+              <div class="t">
+                {uncompared.map((t) => (
+                  <a href={t.href}>{t.exposed_name}</a>
+                ))}
+              </div>
+            </div>
+          )
         }
       </div>
 
-      <p class="prose" style="font-size:13.5px;color:var(--mute);margin-top:26px">
-        Tools without a capability label are registered by {agent.name} but have no comparison page
-        yet — todo lists, subagent spawning, approval flows. They become capabilities the day there
-        is a comparison worth reading, and the data does not have to change for that to happen.
-      </p>
+      {
+        uncompared.length > 0 && (
+          <p class="prose" style="font-size:13.5px;color:var(--mute);margin-top:26px">
+            <b style="font-weight:600">Not yet compared</b> means registered by {agent.name} but with
+            no comparison page here — todo lists, subagent spawning, approval flows. They become
+            capabilities the day there is a comparison worth reading, and the data does not have to
+            change for that to happen.
+          </p>
+        )
+      }
+
+      <div class="chips" style="margin-bottom:46px">
+        {
+          prev && (
+            <a href={`/agents/${prev.id}`}>
+              ←{prev.logo && <img class="mark sm" src={prev.logo} alt="" aria-hidden="true" />}
+              {prev.name}
+            </a>
+          )
+        }
+        <a href="/agents">All agents</a>
+        {
+          next && (
+            <a href={`/agents/${next.id}`}>
+              {next.logo && <img class="mark sm" src={next.logo} alt="" aria-hidden="true" />}
+              {next.name} →
+            </a>
+          )
+        }
+      </div>
     </div>
   </div>
 </Base>

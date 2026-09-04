@@ -552,6 +552,64 @@ a {
   background: var(--ghost);
 }
 
+/* Column track for a matrix whose column count comes from the data. Auto-flow
+   rather than a hardcoded repeat(6) so adding a capability needs no CSS. */
+.mx .cols {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  min-width: 0;
+}
+.mx .cols i {
+  height: 11px;
+  border-radius: 2px;
+  background: var(--fill);
+}
+.mx .cols i.f {
+  background: var(--ink);
+}
+.mx .cols i.p {
+  background: var(--ghost);
+}
+/* Page-sized variant. The base .mx is tuned for a homepage card, where it is a
+   thumbnail of an argument rather than something you read cell by cell. Columns
+   are capped rather than stretched: at full page width a 1fr track turns each
+   cell into a 130px black slab, which reads as a bar chart of nothing. */
+.mx.board {
+  font-size: 11px;
+}
+.mx.board .hdr,
+.mx.board .rw {
+  grid-template-columns: 132px 1fr;
+  gap: 12px;
+}
+.mx.board .rw {
+  margin-bottom: 5px;
+}
+.mx.board .cols {
+  grid-auto-columns: minmax(0, 104px);
+  justify-content: start;
+  gap: 6px;
+}
+.mx.board .cols i {
+  height: 14px;
+}
+/* Column headers wrap here rather than ellipsis. On a card the labels are a
+   legend and truncating is fine; on the page they name the axis, and
+   "Long-term memo…" names nothing. */
+.mx.board .hdr .a {
+  white-space: normal;
+  line-height: 1.35;
+}
+.mx.board .rw .l {
+  color: var(--body);
+}
+.mx.board .rw .l a:hover {
+  color: var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
 footer.site {
   margin-top: 60px;
   padding: 20px 0 56px;
@@ -898,6 +956,99 @@ table.data.cov .via {
   margin-top: 3px;
   white-space: normal;
 }
+table.data.cov .swatch {
+  margin-right: 9px;
+}
+table.data.cov td.cmp {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+table.data.cov td.cmp b {
+  font-weight: 600;
+  color: var(--mute);
+}
+
+/* Inventory, grouped by what a tool serves. The capability groups repeat a tool
+   wherever it serves more than one — that repetition is the point, since it is
+   how a single shell tool covering three rows becomes visible. */
+.inv {
+  border-top: 1px solid var(--ink);
+}
+.inv .grp {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line2);
+  align-items: baseline;
+}
+.inv .grp .l {
+  font-size: 12.5px;
+  color: var(--mute);
+  text-align: right;
+}
+.inv .grp .l a {
+  border-bottom: 1px solid var(--line);
+}
+.inv .grp .l a:hover {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+.inv .grp .t {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  min-width: 0;
+}
+.inv .grp .t a {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--body);
+}
+.inv .grp .t a:hover {
+  color: var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+.inv .grp .t .role {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-left: 5px;
+}
+@media (max-width: 620px) {
+  .inv .grp {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+  .inv .grp .l {
+    text-align: left;
+  }
+}
+
+/* Ported from docs/ui-poc.html; three pages were already asking for it. Defaults
+   to flex-start because every use in the site is a left-aligned row, not the
+   centred hero row the PoC had. */
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.chips a {
+  font-size: 13px;
+  color: var(--mute);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 5px 13px;
+  background: #fff;
+}
+.chips a:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
 
 .toolgrid {
   display: grid;
@@ -930,6 +1081,80 @@ table.data.cov .via {
   font-size: 10.5px;
   color: var(--ghost);
   white-space: nowrap;
+}
+
+/* Product marks. The one place this site spends colour, and it earns it: a
+   reader scanning thirteen harnesses finds the orange asterisk or the red crab
+   faster than they read thirteen names. Everything else stays grey, so the marks
+   never compete with anything for attention. Vendored under public/logos/. */
+.mark {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 4px;
+  flex: none;
+  vertical-align: -5px;
+}
+.mark.xs {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  vertical-align: -3px;
+}
+.mark.sm {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  vertical-align: -3px;
+}
+.mark.lg {
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+}
+a.withmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.mx.board a.withmark {
+  gap: 6px;
+  justify-content: flex-end;
+}
+.chips a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+/* Title lockup: mark and h1 share a baseline-ish alignment at page scale. */
+.titleline {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 16px;
+}
+.titleline h1 {
+  margin: 0;
+}
+
+/* One coverage vocabulary, used by the matrix legend and the capability table
+   alike: ink is a dedicated tool, ghost is reached through another one, and the
+   default fill is a gap. Worth learning once because it appears in both views. */
+.swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--fill);
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+.swatch.f {
+  background: var(--ink);
+}
+.swatch.p {
+  background: var(--ghost);
 }
 
 /* observation values: an invariant may render as pass/fail, a design choice never may */

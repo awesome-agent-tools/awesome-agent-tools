@@ -5,9 +5,13 @@ import { loadDb } from "../lib/db";
 const db = loadDb();
 const { agents, rows } = db.coverageMatrix();
 
+// One entry per agent, carrying that agent's column of the matrix as a row —
+// the matrix and the table below it are then the same numbers twice, not two
+// counts that could disagree.
 const perAgent = agents.map((agent, i) => ({
   agent,
   tools: db.toolsByOwner("agent", agent.id).length,
+  cells: rows.map((r) => r.cells[i]),
   covered: rows.filter((r) => r.cells[i] !== "none").length,
 }));
 ---
@@ -28,6 +32,54 @@ const perAgent = agents.map((agent, i) => ({
         coverage rather than full.
       </p>
 
+      {/* The matrix the table beneath it summarises. Both read the same
+          coverageMatrix() cells, so they cannot drift apart. */}
+      <div class="sech" style="padding-top:0">
+        <h2>Coverage</h2>
+        <div class="rule"></div>
+        <span class="note">
+          <span class="swatch f"></span>dedicated tool
+          <span class="swatch p" style="margin-left:16px"></span>reached indirectly
+          <span class="swatch" style="margin-left:16px"></span>none
+        </span>
+      </div>
+
+      {/* Transposed against coverageMatrix()'s natural shape: one row per agent,
+          six capability columns. Thirteen columns would force the header labels
+          to ellipsis, and a matrix whose columns cannot be read is decoration. */}
+      <div class="scroller">
+        <div class="mx board" style="min-width:600px">
+          <div class="hdr">
+            <div></div>
+            <div class="cols">
+              {rows.map((r) => <div class="a">{r.capability.name}</div>)}
+            </div>
+          </div>
+          {
+            perAgent.map(({ agent, cells }) => (
+              <div class="rw">
+                <div class="l">
+                  <a class="withmark" href={`/agents/${agent.id}`}>
+                    {agent.logo && <img class="mark xs" src={agent.logo} alt="" aria-hidden="true" />}
+                    {agent.name}
+                  </a>
+                </div>
+                <div class="cols">
+                  {cells.map((cell, i) => (
+                    <i
+                      class={cell === "full" ? "f" : cell === "partial" ? "p" : undefined}
+                      title={`${agent.name} · ${rows[i].capability.name} · ${
+                        cell === "none" ? "no built-in tool" : cell === "partial" ? "reached indirectly" : "dedicated tool"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
       <div class="scroller">
         <table class="data">
           <thead>
@@ -45,7 +97,10 @@ const perAgent = agents.map((agent, i) => ({
               perAgent.map(({ agent, tools, covered }) => (
                 <tr>
                   <td class="nm">
-                    <a href={`/agents/${agent.id}`}>{agent.name}</a>
+                    <a class="withmark" href={`/agents/${agent.id}`}>
+                      {agent.logo && <img class="mark" src={agent.logo} alt="" aria-hidden="true" />}
+                      {agent.name}
+                    </a>
                   </td>
                   <td class="dim">{agent.vendor}</td>
                   <td class="dim">{agent.kind}</td>

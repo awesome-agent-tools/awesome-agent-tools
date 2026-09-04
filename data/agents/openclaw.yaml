@@ -7,3 +7,5 @@ repo: https://github.com/openclaw/openclaw
 notes: Tool list taken from published docs rather than source.
 adoption: []
 observations: []
+# Mark taken from https://openclaw.ai/apple-touch-icon.png, resized to 128px and vendored into public/logos/.
+logo: /logos/openclaw.png

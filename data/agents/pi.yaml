@@ -6,3 +6,5 @@ kind: cli
 repo: https://github.com/earendil-works/pi
 adoption: []
 observations: []
+# Mark taken from pi.dev's favicon, resized to 128px and vendored into public/logos/.
+logo: /logos/pi.png

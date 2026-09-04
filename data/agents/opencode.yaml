@@ -6,3 +6,5 @@ kind: cli
 repo: https://github.com/anomalyco/opencode
 adoption: []
 observations: []
+# Mark taken from https://opencode.ai/apple-touch-icon.png, resized to 128px and vendored into public/logos/.
+logo: /logos/opencode.png

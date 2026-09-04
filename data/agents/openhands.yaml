@@ -6,3 +6,5 @@ kind: framework
 repo: https://github.com/OpenHands/software-agent-sdk
 adoption: []
 observations: []
+# Mark taken from https://openhands.dev/favicon.svg, resized to 128px and vendored into public/logos/.
+logo: /logos/openhands.png

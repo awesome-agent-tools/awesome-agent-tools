@@ -7,3 +7,5 @@ source_available: false
 notes: No public repo reachable; tool names come from secondary reporting and are not source-verified.
 adoption: []
 observations: []
+# Mark taken from https://zcode.z.ai/apple-icon.png, resized to 128px and vendored into public/logos/.
+logo: /logos/zcode.png

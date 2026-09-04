@@ -6,3 +6,5 @@ kind: cli
 repo: https://github.com/openai/codex
 adoption: []
 observations: []
+# Mark taken from openai.com's favicon, resized to 128px and vendored into public/logos/.
+logo: /logos/codex.png

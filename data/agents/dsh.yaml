@@ -7,3 +7,5 @@ repo: https://github.com/deepseek-ai/deepseek-harness
 notes: Tool list from docs/tool-catalog.md.
 adoption: []
 observations: []
+# Mark taken from deepseek.com's favicon, resized to 128px and vendored into public/logos/.
+logo: /logos/dsh.png

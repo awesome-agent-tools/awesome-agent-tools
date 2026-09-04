@@ -6,3 +6,5 @@ kind: cli
 repo: https://github.com/XiaomiMiMo/MiMo-Code
 adoption: []
 observations: []
+# Mark taken from the MiMo-Code README banner — no square mark is published, so this is a crop of the wordmark, resized to 128px and vendored into public/logos/.
+logo: /logos/mimo-code.png

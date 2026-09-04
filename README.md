@@ -137,3 +137,12 @@ original.
 
 MIT, code and data alike. Quoting a number is the point — when you do, name the
 protocol version and the run date alongside it, or it cannot be interpreted.
+
+**Except `public/logos/`.** Those files are the product marks of the harnesses
+being compared, and they belong to their respective owners — the MIT grant above
+does not extend to them. They are reproduced here only to identify which harness
+a row refers to, which is nominative use, not a claim of affiliation and not an
+endorsement by any of the vendors. Each file's origin is recorded in a comment
+above the `logo:` field in that agent's `data/agents/<id>.yaml`. If you own one
+of these marks and would rather it were not here, open an issue and it will be
+removed.

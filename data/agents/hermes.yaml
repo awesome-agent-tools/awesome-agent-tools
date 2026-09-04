@@ -6,3 +6,5 @@ kind: framework
 repo: https://github.com/NousResearch/hermes-agent
 adoption: []
 observations: []
+# Mark taken from https://nousresearch.com/apple-touch-icon.png, resized to 128px and vendored into public/logos/.
+logo: /logos/hermes.png

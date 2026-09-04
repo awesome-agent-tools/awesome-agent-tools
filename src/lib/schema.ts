@@ -137,12 +137,23 @@ export const agentSchema = z.object({
   homepage: z.string().url().optional(),
   language: z.string().optional(),
   license: z.string().optional(),
+  /** Path under public/ to the product's mark, vendored rather than hotlinked so
+   *  a page view never pings a vendor's CDN. Purely for recognition — it is not
+   *  a fact about the harness and nothing is derived from it, which is why it
+   *  needs no source block. The comment above each value records where the file
+   *  came from. */
+  logo: z.string().optional(),
   /** Set when there is no public repo to read — the site says so rather than
    *  quietly showing a thinner row. */
   source_available: z.boolean().default(true),
   ...signals,
   adoption: z.array(adoptionSchema).default([]),
   observations: z.array(observationSchema).default([]),
+  /** How the tool list was established when it was not read from published
+   *  source — from the running harness, from docs. Three agent files have
+   *  carried one since the seed import; without this field zod stripped it and
+   *  the caveat never reached the page. Mirrors `notes` on toolSchema. */
+  notes: z.string().optional(),
 });
 
 export type Agent = z.infer<typeof agentSchema>;

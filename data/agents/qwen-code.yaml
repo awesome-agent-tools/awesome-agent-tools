@@ -6,3 +6,5 @@ kind: cli
 repo: https://github.com/QwenLM/qwen-code
 adoption: []
 observations: []
+# Mark taken from the icon qwen.ai declares in its head, resized to 128px and vendored into public/logos/.
+logo: /logos/qwen-code.png
