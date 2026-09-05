@@ -1,56 +1,277 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { loadDb } from "../../lib/db";
+import type { ToolRecord } from "../../lib/db";
 
 const db = loadDb();
 
-// Grouped by owner: the row unit everywhere on this site is the product that
-// ships the tool, not the vendor behind it.
-const groups = [...db.agents]
-  .sort((a, b) => a.name.localeCompare(b.name))
-  .map((agent) => ({ owner: agent, tools: db.toolsByOwner("agent", agent.id) }))
-  .filter((g) => g.tools.length > 0);
+/**
+ * Organised by name rather than by owner. Grouping by owner is what
+ * /agents/<id> already does, so an owner-grouped index is a second copy of a
+ * page that exists; grouping by name is the one view the site does not have
+ * anywhere else, and the literal string is the thing this site keeps insisting
+ * is data.
+ *
+ * Clustered case-insensitively — `Edit` and `edit` are the same name registered
+ * under different casing conventions — but the spellings themselves are kept
+ * verbatim and shown, because which casing a harness chose is data too. No
+ * lowercased key is ever rendered as if a harness had registered it.
+ */
+const clusters = new Map<string, ToolRecord[]>();
+for (const tool of db.tools) {
+  const key = tool.exposed_name.toLowerCase();
+  const bucket = clusters.get(key);
+  if (bucket) bucket.push(tool);
+  else clusters.set(key, [tool]);
+}
 
-const withObservations = db.tools.filter((t) => t.observations.length > 0).length;
+const names = [...clusters.entries()]
+  .map(([key, tools]) => {
+    const sorted = [...tools].sort((a, b) => a.ownerRef.name.localeCompare(b.ownerRef.name));
+    const capabilities = [...new Set(sorted.flatMap((t) => t.capabilities.map((c) => c.id)))];
+    return {
+      key,
+      spellings: [...new Set(sorted.map((t) => t.exposed_name))].sort(),
+      tools: sorted,
+      capabilities,
+      /** What the client-side filter matches against. */
+      haystack: [key, ...sorted.map((t) => t.ownerRef.name)].join(" ").toLowerCase(),
+      // "none" is a filterable value, not an absence: a third of these tools
+      // carry no capability, and being able to ask which ones is the point of
+      // recording them at all.
+      caps: capabilities.length > 0 ? capabilities.join(" ") : "none",
+    };
+  })
+  .sort((a, b) => a.key.localeCompare(b.key));
+
+const shared = names
+  .filter((n) => n.tools.length > 1)
+  .sort((a, b) => b.tools.length - a.tools.length || a.key.localeCompare(b.key));
+const solo = names.filter((n) => n.tools.length === 1);
+const inconsistent = shared.filter((n) => n.spellings.length > 1).length;
+
+const harnesses = db.agents.length;
+const studied = db.tools.filter((t) => t.observations.length > 0).length;
+const untagged = db.tools.filter((t) => t.capabilities.length === 0).length;
+
+const facets = [
+  ...db.capabilities.map((c) => ({ id: c.id, label: c.name })),
+  { id: "none", label: "No capability" },
+];
 ---
 
 <Base
   title="All tools — awesome-agent-tools"
-  description="Every tool on file, grouped by the product that registers it."
+  description={`Every tool on file, grouped by the name it is registered under. ${db.tools.length} registrations, ${names.length} distinct names, ${shared.length} of them shared by more than one harness.`}
   section="tools"
 >
   <div class="bd">
     <div class="cap">
       <div class="eyebrow">Tools</div>
-      <h1>{db.tools.length} tools on file</h1>
+      <h1>{db.tools.length} tools, {names.length} distinct names</h1>
+
+      <div class="kpi">
+        <div>
+          <div class="n tnum">{db.tools.length}</div>
+          <div class="l">registrations across<br />{harnesses} harnesses</div>
+        </div>
+        <div>
+          <div class="n tnum">{names.length}</div>
+          <div class="l">distinct names,<br />casing folded</div>
+        </div>
+        <div>
+          <div class="n tnum">{shared.length}</div>
+          <div class="l">names more than one<br />harness registers</div>
+        </div>
+        <div>
+          <div class="n tnum">{studied}</div>
+          <div class="l">read from source<br />in detail</div>
+        </div>
+      </div>
+      <div class="method">
+        Names are verbatim, casing untouched. Clustering folds case only to group them.
+      </div>
 
       <p class="prose">
-        Names are verbatim, casing untouched — the literal string is data, because models carry
-        priors about what a tool called <code>Read</code> does versus one called{" "}
-        <code>file_editor</code>. {withObservations} of these have been read from source in detail;
-        the rest are inventory, recorded so the coverage maths is honest.
+        The literal string is data, because models carry priors about what a tool called <code
+          >Read</code
+        > does versus one called <code>file_editor</code>. Grouped by name that stops being an
+        assertion: {shared.length} names are registered by two or more harnesses, and {inconsistent} of
+        those are spelled inconsistently between them. {studied} tools have been read from source in
+        detail; {untagged} carry no capability yet and are inventory, recorded so the coverage maths
+        is honest rather than flattering.
       </p>
 
-      {
-        groups.map(({ owner, tools }) => (
-          <>
-            <div class="sech" style="padding-top:0">
-              <h2>
-                <a href={`/agents/${owner.id}`}>{owner.name}</a>
-              </h2>
-              <div class="rule" />
-              <span class="note">{tools.length}</span>
-            </div>
-            <div class="chips" style="justify-content:flex-start;margin-bottom:26px">
-              {tools.map((t) => (
-                <a href={t.href} class="mono" title={t.capabilities.map((c) => c.id).join(", ")}>
-                  {t.exposed_name}
-                </a>
-              ))}
-            </div>
-          </>
-        ))
-      }
+      <div class="filter">
+        <input
+          id="tf"
+          type="search"
+          autocomplete="off"
+          placeholder="Filter by name or harness…"
+          aria-label="Filter tools by name or harness"
+          aria-controls="shared-tbody solo-grid"
+        />
+        <button type="button" data-cap="" aria-pressed="true">All</button>
+        {
+          facets.map((f) => (
+            <button type="button" data-cap={f.id} aria-pressed="false">
+              {f.label}
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="sech" style="padding-top:26px">
+        <h2>Registered by more than one harness</h2>
+        <div class="rule"></div>
+        <span class="note"><span id="n-shared">{shared.length}</span> names</span>
+      </div>
+
+      <div class="scroller">
+        <table class="data names">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th class="num">Used by</th>
+              <th style="width:120px">Spread</th>
+              <th>Capability</th>
+              <th>Registered by</th>
+            </tr>
+          </thead>
+          <tbody id="shared-tbody">
+            {
+              shared.map((n) => (
+                <tr data-row data-h={n.haystack} data-caps={n.caps}>
+                  <td class="nm">
+                    {n.spellings.map((s, i) => (
+                      <>
+                        {i > 0 && <span class="alt"> / </span>}
+                        <span class={i > 0 ? "alt" : undefined}>{s}</span>
+                      </>
+                    ))}
+                  </td>
+                  <td class="num">{n.tools.length}</td>
+                  <td>
+                    <span class="dots" aria-hidden="true">
+                      {Array.from({ length: harnesses }, (_, i) => (
+                        <i class={i < n.tools.length ? "f" : undefined} />
+                      ))}
+                    </span>
+                  </td>
+                  <td class="dim wrap">
+                    {n.capabilities.length === 0 ? (
+                      <span class="none">—</span>
+                    ) : (
+                      n.capabilities.map((id, i) => (
+                        <>
+                          {i > 0 && <span class="sep"> · </span>}
+                          <a href={`/tools/${id}`}>{db.capability(id)?.name ?? id}</a>
+                        </>
+                      ))
+                    )}
+                  </td>
+                  <td class="wrap">
+                    {n.tools.map((t, i) => (
+                      <>
+                        {i > 0 && <span class="sep"> · </span>}
+                        <a href={t.href}>{t.ownerRef.name}</a>
+                        {/* Only where the harnesses disagree about casing —
+                            otherwise the row header has already said it. */}
+                        {n.spellings.length > 1 && <span class="vb">{t.exposed_name}</span>}
+                      </>
+                    ))}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sech" style="padding-top:0">
+        <h2>Registered by one harness only</h2>
+        <div class="rule"></div>
+        <span class="note"><span id="n-solo">{solo.length}</span> names</span>
+      </div>
+
+      <div class="toolgrid" id="solo-grid">
+        {
+          solo.map((n) => (
+            <a href={n.tools[0].href} data-row data-h={n.haystack} data-caps={n.caps}>
+              <span class="tn">{n.tools[0].exposed_name}</span>
+              <span class="tc">{n.tools[0].ownerRef.name}</span>
+            </a>
+          ))
+        }
+      </div>
+
+      <p class="nores" id="nores" hidden>No tool matches that filter.</p>
+
+      <p class="prose" style="font-size:13.5px;color:var(--mute);margin-top:26px">
+        A dash in the capability column means no comparison page covers that tool yet — todo lists,
+        subagent spawning, approval flows. They become capabilities the day there is a comparison
+        worth reading, and the data does not have to change for that to happen.
+      </p>
     </div>
   </div>
 </Base>
+
+<script>
+  // Progressive enhancement. Every row is server-rendered and linked; this only
+  // hides the ones you did not ask for.
+  const input = document.getElementById("tf") as HTMLInputElement | null;
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>(".filter button")];
+  const rows = [...document.querySelectorAll<HTMLElement>("[data-row]")];
+  const nores = document.getElementById("nores");
+
+  if (input && rows.length > 0) {
+    let cap = "";
+
+    const setCount = (id: string, n: number) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(n);
+    };
+
+    const apply = () => {
+      const q = input.value.trim().toLowerCase();
+      let shown = 0;
+      let sharedCount = 0;
+      let soloCount = 0;
+
+      for (const row of rows) {
+        const caps = (row.dataset.caps ?? "").split(" ");
+        const hit =
+          (q === "" || (row.dataset.h ?? "").includes(q)) && (cap === "" || caps.includes(cap));
+        row.hidden = !hit;
+        if (!hit) continue;
+        shown++;
+        if (row.tagName === "TR") sharedCount++;
+        else soloCount++;
+      }
+
+      // The section counts are claims about what is on screen, so they move with
+      // the filter rather than staying at the unfiltered total.
+      setCount("n-shared", sharedCount);
+      setCount("n-solo", soloCount);
+      if (nores) nores.hidden = shown > 0;
+    };
+
+    input.addEventListener("input", apply);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        input.value = "";
+        apply();
+      }
+    });
+
+    for (const button of buttons) {
+      button.addEventListener("click", () => {
+        cap = button.dataset.cap ?? "";
+        for (const other of buttons) {
+          other.setAttribute("aria-pressed", String(other === button));
+        }
+        apply();
+      });
+    }
+  }
+</script>

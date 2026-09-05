@@ -224,7 +224,6 @@ a {
   font-size: 12.5px;
 }
 
-
 /* ---------- section header ---------- */
 .sech {
   display: flex;
@@ -856,6 +855,12 @@ table.data td.none {
   color: var(--ghost);
   text-align: center;
 }
+/* Same idea one level in: a cell that says "nothing here" rather than being a
+   cell of nothing. The agent page's "no built-in tool" reads as body text
+   without this. */
+table.data td .none {
+  color: var(--ghost);
+}
 table.data td.unk {
   color: var(--faint);
   text-align: center;
@@ -1195,6 +1200,109 @@ a.withmark {
 }
 .swatch.p {
   background: var(--ghost);
+}
+
+/* ---------- tools index ----------
+   Progressive enhancement only: every row below is in the HTML and reachable
+   without scripting. The bar narrows 235 rows, it does not fetch them. */
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 6px;
+}
+.filter input {
+  height: 34px;
+  min-width: 210px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  outline: none;
+  transition: 0.15s;
+}
+.filter input::placeholder {
+  color: var(--faint);
+}
+.filter input::-webkit-search-cancel-button {
+  display: none;
+}
+.filter input:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(11, 12, 14, 0.05);
+}
+.filter button {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--mute);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 5px 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.filter button:hover {
+  border-color: var(--ghost);
+  color: var(--ink);
+}
+.filter button[aria-pressed="true"] {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 550;
+}
+
+/* How many harnesses register the same literal name. Same dot vocabulary as the
+   homepage adoption card — count first, dots to make the column scannable. */
+.dots {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+}
+.dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+.dots i.f {
+  background: var(--ink);
+}
+
+table.data.names td.nm {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+table.data.names td.nm .alt {
+  color: var(--faint);
+  font-weight: 400;
+}
+/* Which harness spells it which way is only worth the ink when they disagree. */
+table.data.names .vb {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  margin-left: 4px;
+}
+
+/* `hidden` is a UA display:none, which loses to the author rule above — so the
+   filter cannot hide a grid entry unless it is restated here. */
+.toolgrid a[hidden] {
+  display: none;
+}
+
+.nores {
+  font-size: 13.5px;
+  color: var(--mute);
+  padding: 18px 0 0;
+}
+.nores[hidden] {
+  display: none;
 }
 
 /* observation values: an invariant may render as pass/fail, a design choice never may */
