@@ -1,0 +1,56 @@
+# OpenClaw · find
+# Added by the code-search source pass; see the sibling grep.yaml.
+exposed_name: find
+owner:
+  type: agent
+  id: openclaw
+capabilities:
+  - id: code-search
+    role: partial
+
+source:
+  url: https://github.com/openclaw/openclaw
+  commit: 97348a053fff
+  checked_at: 2026-09-05
+observations:
+  - key: search_kind
+    value: "by-name"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/find.ts
+    method: source
+  - key: search_tool_split
+    value: "two tools"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/find.ts
+    method: source
+  - key: search_engine
+    status: unverified
+    method: source
+  - key: glob_syntax
+    status: unverified
+    method: source
+  - key: case_sensitivity_default
+    status: unverified
+    method: source
+  - key: result_cap
+    value: "1000 results or 30KB"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/find.ts
+    method: source
+  - key: search_announces_truncation
+    value: "true"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/find.ts
+    method: source
+  - key: no_match_signal
+    value: "sentence"
+    note: '"No files found matching pattern".'
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/find.ts
+    method: source
+  - key: respects_gitignore
+    value: "yes"
+    note: "Stated in the tool description the model sees."
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/find.ts
+    method: source
+  - key: searches_hidden_files
+    status: unverified
+    method: source
+  - key: result_ordering
+    status: unverified
+    method: source

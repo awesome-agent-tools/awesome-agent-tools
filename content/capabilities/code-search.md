@@ -3,20 +3,20 @@
 # harness's grep, it arrives with the harness. Without a pick the verdict block
 # does not render and this page is a reference for the people building these
 # tools, not a buying guide.
-updated: 2026-09-04
+updated: 2026-09-05
 kpi:
   - derive: { as: ratio, key: grep_line_agrees_with_read, counts: "false" }
     label: content searches whose line numbers disagree with their own read tool
     sub: an invariant, not a preference
   - derive: { as: distinct, key: result_ordering }
     label: orderings decide which results you see
-    sub: and every tool here caps its results
+    sub: and all but one of these tools caps its results
   - derive: { as: ratio, key: search_announces_truncation, counts: "true" }
     label: say so when the cap bites
     sub: the one thing every implementation gets right
 ---
 
-Eleven search tools across six harnesses were read from source. Code search is
+Twenty search tools across eleven harnesses were read from source. Code search is
 two jobs — finding a file by its name, and finding a string inside one — and
 almost every harness ships a separate tool for each, so the comparison below is
 two tables rather than one.
@@ -37,7 +37,7 @@ contradict each other, and it is listed as an **invariant** rather than a design
 choice. Either base is defensible on its own; the read page makes exactly that
 argument about `offset_base` and declines to score it. But a search result is a
 pointer into a file, and a pointer that does not resolve in the tool it is meant
-to be handed to is not a preference. The other four harnesses where the question
+to be handed to is not a preference. The other six harnesses where the question
 applies use 1-indexed on both sides.
 
 Nothing surfaces this. Both descriptions are accurate in isolation; neither
@@ -52,10 +52,11 @@ the read cache as a partial read.
 
 That is a defensible cache optimisation and it is also a hole in the read
 tracking the read page spends most of its length on: a file the model has seen
-one line of is now, as far as the harness is concerned, a file it has read. Of
-the six harnesses here this is the only one where the interaction was found, and
-in five of the six it was not verified either way — so this is a lead, not yet a
-comparison.
+one line of is now, as far as the harness is concerned, a file it has read. It
+is the only harness here where the interaction was found; in nine other cases it
+was not verified either way, so this is a lead rather than a comparison. Codex
+is the one confirmed negative, and only because it has no read tracking to
+subvert.
 
 ## Half the answers depend on what is installed on the machine
 
@@ -75,29 +76,50 @@ Qwen Code has the same shape of fallback chain — ripgrep, then `git grep`, the
 `grep`, then an in-process JavaScript scan — with the same consequence for the
 dialect.
 
+Codex takes this to its conclusion by not shipping a search tool at all. It
+searches the way it reads: the model types `rg` or `grep` or `find` into
+`exec_command`, and every row on this page becomes a property of the machine
+rather than of the harness. That is a coherent position — the shell is already
+there and it composes — but it is the only implementation here where a search
+that found nothing and a search that failed are the same empty string, and the
+only one with no result cap, so a careless pattern spends the context window
+before anyone can intervene.
+
 ## Everyone caps, and everyone says so
 
-Every one of the eleven tools limits what it returns, and every one of them
-announces the limit. That is worth stating plainly because it is the invariant
-the read page found broken: on `read`, six of nine will let an agent overwrite a
-concurrent edit. Here the equivalent question comes back clean.
+Eighteen of the twenty tools limit what they return, and all eighteen announce
+the limit. That is worth stating plainly because it is the invariant the read
+page found broken: on `read`, six of nine will let an agent overwrite a
+concurrent edit. Here the equivalent question comes back clean. The two
+exceptions are not failures — Codex has no cap to announce, and Grok Build's
+`list_dir` was not checked.
 
-What the announcements offer differs. Most name the cap and suggest narrowing
-the pattern. Kimi Code and Hermes return an offset to page with. dsh does
-something no one else does: it writes the complete result to a file and hands
-back the locator, so the part that did not fit is recoverable rather than merely
-acknowledged — and over the cap its glob can return a sample spread across
-top-level directories instead of the first hundred paths, on the grounds that
-the first hundred paths of a large tree are all in the same corner of it.
+What the announcements offer differs, and the differences are larger than the
+fact of announcing. Most name the cap and suggest narrowing the pattern. Kimi
+Code and Hermes return an offset to page with; pi names the exact argument value
+that would fetch the rest. MiMo Code reports how many matches are hidden rather
+than only that some are. dsh does something no one else does: it writes the
+complete result to a file and hands back the locator, so the part that did not
+fit is recoverable rather than merely acknowledged — and over the cap its glob
+can return a sample spread across top-level directories instead of the first
+hundred paths, on the grounds that the first hundred paths of a large tree are
+all in the same corner of it.
+
+Grok Build is the one that worries about announcing too much: it reads one line
+past its budget specifically so a result that exactly fills the cap is not
+reported as truncated, and where it does truncate it reports "at least" counts,
+because ripgrep was killed early and the true total is not known.
 
 ## .gitignore is a ceiling, and dsh refuses it
 
-Six of the ten tools that answered respect `.gitignore` outright — two with an
-opt-out argument the model can set, two extending it with an AI-specific ignore
-file of their own. Two more respect it only when ripgrep is the backend that
-happened to be picked, as above. dsh goes the other way on purpose:
-`--no-ignore --hidden` are fixed in its argv, VCS metadata is the only
-exclusion, and the tool description says so to the model in as many words.
+Thirteen of the eighteen tools that answered respect `.gitignore` — eight
+outright, and five with a qualification: an opt-out argument the model can set,
+an extra ignore file of the harness's own, or a documented way to override it.
+Two more respect it only when ripgrep is the backend that happened to be picked,
+as above, and one leaves it to whatever binary the model invokes. dsh goes the
+other way on purpose: `--no-ignore --hidden` are fixed in its argv, VCS metadata
+is the only exclusion, and the tool description says so to the model in as many
+words.
 
 Neither is wrong, which is why this is recorded as a design choice. But it is
 the one setting on this page that decides whether a file is findable at all, and
@@ -106,24 +128,45 @@ file that does not exist.
 
 ## Two tools, or one
 
-Ten of the eleven are half of a pair: a glob tool and a grep tool, and the model
-has to know which job it is doing before it has looked at anything. Hermes ships
-one `search_files` with a `target` argument instead, which lets the model defer
-that choice by one turn.
+Eighteen of the twenty are half of a pair: a glob tool and a grep tool, and the
+model has to know which job it is doing before it has looked at anything. Hermes
+ships one `search_files` with a `target` argument instead, which lets the model
+defer that choice by one turn. Codex ships neither.
 
 Whether that matters is not something this page can answer — it is a question
 about tool-selection behaviour, which needs a model in the loop and a run, not a
 reading of the source. It is on the list.
 
+## The same code, one line apart
+
+MiMo Code's search tools are a fork of opencode's, close enough that whole
+functions are identical. They disagree on one line: MiMo sorts matches by
+modification time before applying the cap, opencode returns ripgrep's traversal
+order untouched.
+
+Neither ordering is better. But both cap at a hundred, so the line decides which
+matches the model never sees — and on a repository where the hundred-and-first
+match is the one that matters, the two harnesses give different answers to the
+same question while running what is recognisably the same code. Eight distinct
+orderings appear across this page, which makes ordering the least discussed and
+most consequential row on it.
+
 ## What is not here
 
-Thirteen tools across seven harnesses register a code-search tool that has not
-been read from source, including both of Claude Code's; they are named under the
-candidate table rather than shown as empty rows.
+Five tools across three harnesses register a code-search tool that has not been
+read from source, including both of Claude Code's, which publishes no tool
+source to read. They are named under the candidate table rather than shown as
+empty rows.
 
 Two rows are thin even for the harnesses that were read. **Case sensitivity** was
-confirmed for two of eleven — and both of those hardcode case-insensitive with no
-way for the model to ask for anything else, which is interesting enough that the
-other nine are worth going back for. The **binary guard** was confirmed for two.
-Those cells say `?`, which means nobody checked, not that the behaviour is
-missing.
+confirmed for six of twenty: three let the model choose and default to
+case-sensitive, two hardcode case-insensitive with no way to ask for anything
+else, and one inherits whatever the shell was given. The **binary guard** was
+confirmed for three. Those cells say `?`, which means nobody checked, not that
+the behaviour is missing.
+
+Two corrections came out of this pass. OpenClaw's `find` and `grep` were missing
+from the inventory entirely, which had it recorded as searching through its
+shell; it does not. And MiMo Code's `codesearch` was filed here on the strength
+of its name — it calls Exa over HTTP and returns library documentation from the
+public internet, never touching the repository, so it has moved to web search.

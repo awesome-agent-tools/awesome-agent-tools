@@ -1,0 +1,85 @@
+# OpenClaw · grep
+# Added by the code-search source pass: the seed inventory recorded only
+# OpenClaw's shell for this capability, but the harness registers a dedicated
+# grep tool alongside it.
+exposed_name: grep
+owner:
+  type: agent
+  id: openclaw
+capabilities:
+  - id: code-search
+    role: primary
+
+source:
+  url: https://github.com/openclaw/openclaw
+  commit: 97348a053fff
+  checked_at: 2026-09-05
+observations:
+  - key: search_kind
+    value: "by-content"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: search_tool_split
+    value: "two tools"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: search_engine
+    value: "bundled ripgrep"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: regex_dialect
+    value: "Rust regex"
+    note: >-
+      A literal-string mode is exposed as a parameter for patterns the dialect
+      will not take.
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: case_sensitivity_default
+    value: "sensitive, model can ask"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: search_line_numbers
+    value: "path:N:"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: result_cap
+    value: "100 matches or 30KB"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: search_announces_truncation
+    value: "true"
+    note: >-
+      The caps are also stated in the tool description the model reads before
+      calling, not only in the result.
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: no_match_signal
+    value: "sentence"
+    note: '"No matches found".'
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: grep_line_agrees_with_read
+    status: unverified
+    note: >-
+      The grep half is 1-indexed; OpenClaw's read tool has not been read from
+      source, so the pair has not been checked.
+    method: source
+  - key: search_marks_file_read
+    status: unverified
+    method: source
+  - key: respects_gitignore
+    value: "yes"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: searches_hidden_files
+    value: "yes"
+    note: "--hidden is passed unconditionally."
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
+  - key: search_binary_guard
+    status: unverified
+    method: source
+  - key: result_ordering
+    value: "ripgrep traversal order"
+    source_url: https://github.com/openclaw/openclaw/blob/97348a053fff/src/agents/sessions/tools/grep.ts
+    method: source
