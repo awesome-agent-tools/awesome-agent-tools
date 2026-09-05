@@ -59,6 +59,8 @@ export type Observation = z.infer<typeof observationSchema>;
  *    site from marking Qwen's 0-indexed read as a failure.
  *  - `group` + `order` drive comparison-table row grouping, so the ordering
  *    lives in data rather than hardcoded in a template.
+ *  - `applies_to` splits a capability whose tools do two different jobs, so a
+ *    key is never rendered as a question its subject was never asked.
  */
 export const observationKeySchema = z.object({
   key: z.string().regex(/^[a-z0-9_]+$/, "must be lower_snake_case"),
@@ -68,6 +70,12 @@ export const observationKeySchema = z.object({
   short: z.string().optional(),
   group: z.string(),
   capability: slug.optional(),
+  /** Which half of a two-job capability the key asks about. Code search is two
+   *  tools doing different work — finding files by name and searching their
+   *  contents — and a regex-dialect question means nothing asked of a glob
+   *  tool. Keys default to `both`, which is what every read key is, so a
+   *  single-job capability never has to think about this. */
+  applies_to: z.enum(["name", "content", "both"]).default("both"),
   type: z.enum(["enum", "boolean", "number", "string"]),
   values: z.array(z.string()).optional(),
   /** `invariant`: violating it is a bug every implementation should avoid.
@@ -87,6 +95,33 @@ export const observationKeySchema = z.object({
 
 export type ObservationKey = z.infer<typeof observationKeySchema>;
 
+/**
+ * Some capabilities are one job done by one tool; read is. Code search is two
+ * jobs — finding files by name, searching their contents — usually done by two
+ * tools, and putting both in one comparison table asks a glob tool which regex
+ * dialect it speaks.
+ *
+ * Which table a tool lands in is decided by one of its own observations, not by
+ * a list of tool ids here: a tool that changes what it does moves table the
+ * next time its source is read, with no edit to this file.
+ */
+const capabilitySplitSchema = z.object({
+  key: z.string(),
+  parts: z
+    .array(
+      z.object({
+        /** Lines up with `applies_to` on an observation key. */
+        id: z.enum(["name", "content"]),
+        label: z.string(),
+        /** Observation values that put a tool in this part. A tool that does
+         *  both jobs appears in both tables, which is the honest rendering of
+         *  a tool that does both jobs. */
+        match: z.array(z.string()).min(1),
+      }),
+    )
+    .min(2),
+});
+
 export const capabilitySchema = z.object({
   id: slug,
   name: z.string(),
@@ -94,6 +129,7 @@ export const capabilitySchema = z.object({
    *  capability should not exist (product.md §6). */
   question: z.string(),
   description: z.string(),
+  split: capabilitySplitSchema.optional(),
   order: z.number().default(0),
 });
 

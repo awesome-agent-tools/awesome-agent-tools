@@ -40,6 +40,20 @@
     Locating files and matching content across a repository. The split between
     glob-style and grep-style tools, and whether a harness gives one tool or
     two, shapes how models explore an unfamiliar codebase.
+  # Two jobs, so two comparison tables. Which one a tool lands in comes from its
+  # own `search_kind` observation rather than a list of ids here — a tool that
+  # grows a mode argument moves table the next time its source is read. A tool
+  # that does both jobs appears in both, because it really does answer both
+  # sets of questions.
+  split:
+    key: search_kind
+    parts:
+      - id: name
+        label: Finding files by name
+        match: ["by-name", "both", "shell"]
+      - id: content
+        label: Searching file contents
+        match: ["by-content", "both", "shell"]
   order: 4
 
 - id: shell

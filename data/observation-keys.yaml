@@ -317,3 +317,234 @@
   description: >-
     Whether reading a file also pulls AGENTS.md / CLAUDE.md into context. A read
     tool that quietly adds instructions is doing two jobs.
+
+# =========================================================== code search
+# Two jobs, not one: finding files by name and searching what is inside them.
+# Most harnesses ship a tool for each, so `applies_to` keeps a question from
+# being asked of a tool that was never in that business — a glob tool has no
+# regex dialect, and saying "—" is more honest than leaving the reader to work
+# out why the cell is empty.
+#
+# `search_kind` is the key the capability splits on; see `split` in
+# capabilities.yaml.
+
+# -------------------------------------------------------- code search · shape
+- key: search_kind
+  label: What it searches
+  short: Searches
+  group: Shape
+  capability: code-search
+  type: enum
+  values: ["by-name", "by-content", "both", "shell"]
+  class: design-choice
+  order: 100
+  description: >-
+    Whether the tool finds files by their name, searches inside their contents,
+    or does both. Decides which comparison table below the tool appears in.
+
+- key: search_tool_split
+  label: Tools per harness
+  short: Tools
+  group: Shape
+  capability: code-search
+  type: string
+  class: design-choice
+  order: 101
+  # A harness's answer, recorded on each of its search tools. It is the same
+  # value twice for a harness that ships two tools, which is the price of
+  # keeping every fact attached to a tool rather than inventing a second
+  # subject type for it.
+  description: >-
+    Whether the harness gives the model one search tool or two. Two tools means
+    the model has to know which job it is doing before it has looked; one tool
+    with a mode argument means it can decide later.
+
+- key: search_engine
+  label: Search engine
+  group: Shape
+  capability: code-search
+  type: string
+  class: design-choice
+  order: 102
+  description: >-
+    What actually does the searching. Bundling ripgrep makes behaviour the same
+    everywhere the harness runs; falling back to whatever is on the machine
+    does not.
+
+# ----------------------------------------------- code search · query language
+- key: regex_dialect
+  label: Regex dialect
+  group: Query language
+  capability: code-search
+  applies_to: content
+  type: string
+  class: design-choice
+  headline: true
+  order: 110
+  description: >-
+    Which regex engine the model's pattern is handed to. Rust's regex crate,
+    which ripgrep uses, has no backreferences and no lookaround; a pattern using
+    either does not error, it returns nothing — indistinguishable from the code
+    genuinely not being there.
+
+- key: glob_syntax
+  label: Glob syntax
+  group: Query language
+  capability: code-search
+  applies_to: name
+  type: string
+  class: design-choice
+  order: 111
+  description: >-
+    Which glob dialect the pattern is interpreted in, and whether a bare
+    `*.py` is implicitly made recursive.
+
+- key: case_sensitivity_default
+  label: Case sensitivity
+  short: Case
+  group: Query language
+  capability: code-search
+  type: string
+  class: design-choice
+  order: 112
+  description: >-
+    What a pattern with no case flag does, and whether the model can ask for
+    the other behaviour at all.
+
+# ------------------------------------------------- code search · result shape
+- key: search_line_numbers
+  label: Line numbers in results
+  short: Line numbers
+  group: Result shape
+  capability: code-search
+  applies_to: content
+  type: string
+  class: design-choice
+  order: 120
+  description: >-
+    How a match reports where it is. A tool that returns only file paths has
+    not told the model where to look, and the model has to read the file again
+    to find out.
+
+- key: result_cap
+  label: Result cap
+  group: Result shape
+  capability: code-search
+  type: string
+  class: design-choice
+  order: 121
+  description: How many results come back before the tool stops.
+
+- key: search_announces_truncation
+  label: Announces truncation
+  short: Announces truncation
+  group: Result shape
+  capability: code-search
+  type: boolean
+  class: invariant
+  holds_when: "true"
+  headline: true
+  order: 122
+  description: >-
+    Every search tool caps its results. A capped list that does not say it was
+    capped reads to the model as the complete set of matches, and "there are no
+    other call sites" is exactly the conclusion it will draw.
+
+- key: no_match_signal
+  label: How "no matches" reads
+  short: No matches
+  group: Result shape
+  capability: code-search
+  type: string
+  class: design-choice
+  order: 123
+  description: >-
+    An empty string and the sentence "No matches found" are the same fact, but
+    a model reads the first as a tool that failed and the second as a question
+    that was answered.
+
+# -------------------------------------------- code search · agreement with read
+- key: grep_line_agrees_with_read
+  label: Search line N is read line N
+  short: Agrees with read
+  group: Agreement with read
+  capability: code-search
+  applies_to: content
+  type: boolean
+  class: invariant
+  holds_when: "true"
+  headline: true
+  order: 130
+  description: >-
+    The line number a content search reports has to be the line the harness's
+    own read tool returns for that offset. Where the two tools count from
+    different bases, every jump from a search hit to the file lands one line off,
+    and nothing in either tool's description says so.
+
+- key: search_marks_file_read
+  label: Search counts as having read
+  short: Counts as read
+  group: Agreement with read
+  capability: code-search
+  applies_to: content
+  type: string
+  class: design-choice
+  order: 131
+  description: >-
+    Whether matching inside a file registers with the harness's read tracking.
+    Where it does, a search can satisfy a read-before-edit gate on a file whose
+    contents the model has only ever seen one line of.
+
+# -------------------------------------------------------- code search · scope
+- key: respects_gitignore
+  label: Respects .gitignore
+  short: Gitignore
+  group: Scope
+  capability: code-search
+  type: string
+  class: design-choice
+  headline: true
+  order: 140
+  description: >-
+    Whether ignored files are searched. This is a legitimate choice — skipping
+    build output is usually right — but it sets a ceiling on what the agent can
+    find, and a file it cannot find reads exactly like a file that is not there.
+
+- key: searches_hidden_files
+  label: Searches hidden files
+  short: Hidden files
+  group: Scope
+  capability: code-search
+  type: string
+  class: design-choice
+  order: 141
+  description: Whether dotfiles and dot-directories are in scope.
+
+- key: search_binary_guard
+  label: Binary content never enters context
+  short: Binary guard
+  group: Scope
+  capability: code-search
+  applies_to: content
+  type: boolean
+  class: invariant
+  holds_when: "true"
+  order: 142
+  description: >-
+    The same rule the read page applies to whole files, applied to matched
+    lines: a match inside a binary file must not put raw bytes in the context
+    window. Spending context on bytes the model cannot use is a bug wherever it
+    happens.
+
+# ----------------------------------------------------- code search · ordering
+- key: result_ordering
+  label: Result ordering
+  short: Ordering
+  group: Ordering
+  capability: code-search
+  type: string
+  class: design-choice
+  order: 150
+  description: >-
+    What decides which results come first — and therefore, once the cap bites,
+    which results the model never sees at all.

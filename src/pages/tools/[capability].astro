@@ -32,8 +32,59 @@ const all = db.toolsByCapability(capabilityId);
 const documented = all.filter((t) => t.observations.some((o) => db.observationKey(o.key)?.capability === capabilityId));
 const unstudied = all.filter((t) => !documented.includes(t));
 
-const groups = groupedKeys(db, capabilityId);
 const headlineKeys = db.keysForCapability(capabilityId).filter((k) => k.headline);
+
+// A capability whose tools do two different jobs renders two comparison
+// tables; one that does not renders the single table it always did. The
+// assignment comes from each tool's own observation of `split.key`, so a tool
+// whose kind is unverified sits in the candidate table and in neither
+// comparison — the same rule that keeps unstudied tools out of the tables,
+// one level up.
+const split = capability.split;
+const kindOf = (tool: (typeof documented)[number]) => {
+  if (!split) return undefined;
+  const o = tool.observations.find((x) => x.key === split.key);
+  return o?.status === "ok" ? String(o.value) : undefined;
+};
+
+const rawTables = split
+  ? split.parts.map((part) => ({
+      partId: part.id as string,
+      label: part.label as string | undefined,
+      tools: documented.filter((t) => {
+        const kind = kindOf(t);
+        return kind !== undefined && part.match.includes(kind);
+      }),
+      groups: groupedKeys(db, capabilityId, part.id),
+    }))
+  : [{ partId: "", label: undefined, tools: documented, groups: groupedKeys(db, capabilityId) }];
+
+// A key that applies to both halves renders in both tables, so the row id has
+// to be assigned once rather than emitted twice. The first table to carry a
+// key keeps the bare key as its anchor — that is the one an outside page cites
+// — and any repeat gets a qualified one.
+const seenAnchors = new Set<string>();
+const tables = rawTables
+  .filter((t) => t.tools.length > 0 && t.groups.length > 0)
+  .map((t) => ({
+    ...t,
+    groups: t.groups.map((g) => ({
+      group: g.group,
+      keys: g.keys.map((k) => {
+        const anchor = seenAnchors.has(k.key) ? `${t.partId}-${k.key}` : k.key;
+        seenAnchors.add(k.key);
+        return { k, anchor };
+      }),
+    })),
+  }));
+
+const splitKey = split ? db.observationKey(split.key) : undefined;
+
+// Tools and harnesses are not the same count. Code search and shell register
+// two or three tools per harness, so reporting the tool count as a harness
+// count overstates the survey by roughly double.
+const unstudiedOwners = new Set(unstudied.map((t) => t.ownerRef.id)).size;
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 const runs = db.benchmarks
   .filter((b) => b.capability === capabilityId)
@@ -177,62 +228,89 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
         <span class="note">{all.length} tools · {documented.length} read from source</span>
       </div>
 
-      <div class="scroller">
-        <table class="data">
-          <thead>
-            <tr>
-              <th>Owner</th>
-              <th>Tool</th>
-              {headlineKeys.map((k) => (
-                <th>
-                  {k.short ?? k.label}
-                  <span class="sub">{k.class === "invariant" ? "invariant" : "choice"}</span>
-                </th>
-              ))}
-              <th>Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            {
-              documented.map((tool) => (
-                <tr id={tool.id} class={pickTool?.id === tool.id ? "hi" : undefined}>
-                  <td class="nm">
-                    <a href={tool.ownerRef.href}>{tool.ownerRef.name}</a>
-                  </td>
-                  <td class="mono">
-                    <a href={tool.href}>{tool.exposed_name}</a>
-                  </td>
+      {
+        documented.length > 0 ? (
+          <div class="scroller">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Owner</th>
+                  <th>Tool</th>
+                  {splitKey && (
+                    <th>
+                      {splitKey.short ?? splitKey.label}
+                      <span class="sub">choice</span>
+                    </th>
+                  )}
                   {headlineKeys.map((k) => (
-                    <td>
-                      <ObservationValue
-                        keyDef={k}
-                        observation={tool.observations.find((o) => o.key === k.key)}
-                        fallbackSource={tool.source}
-                      />
-                    </td>
+                    <th>
+                      {k.short ?? k.label}
+                      <span class="sub">{k.class === "invariant" ? "invariant" : "choice"}</span>
+                    </th>
                   ))}
-                  <td class="dim">
-                    {tool.source ? (
-                      <a class="mono" href={tool.source.url}>
-                        repo
-                      </a>
-                    ) : (
-                      <span class="none">—</span>
-                    )}
-                  </td>
+                  <th>Source</th>
                 </tr>
-              ))
-            }
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {documented.map((tool) => (
+                  <tr id={tool.id} class={pickTool?.id === tool.id ? "hi" : undefined}>
+                    <td class="nm">
+                      <a href={tool.ownerRef.href}>{tool.ownerRef.name}</a>
+                    </td>
+                    <td class="mono">
+                      <a href={tool.href}>{tool.exposed_name}</a>
+                    </td>
+                    {splitKey && (
+                      <td>
+                        <ObservationValue
+                          keyDef={splitKey}
+                          observation={tool.observations.find((o) => o.key === splitKey.key)}
+                          fallbackSource={tool.source}
+                        />
+                      </td>
+                    )}
+                    {headlineKeys.map((k) => (
+                      <td>
+                        <ObservationValue
+                          keyDef={k}
+                          observation={tool.observations.find((o) => o.key === k.key)}
+                          fallbackSource={tool.source}
+                        />
+                      </td>
+                    ))}
+                    <td class="dim">
+                      {tool.source ? (
+                        <a class="mono" href={tool.source.url}>
+                          repo
+                        </a>
+                      ) : (
+                        <span class="none">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          // An empty table with a header row and no body reads as "we looked
+          // and found nothing". Nothing has been looked at yet, which is a
+          // different claim and the one worth making.
+          <p class="prose" style="font-size:14px">
+            <b>Not surveyed yet.</b> No implementation of this capability has been read from source,
+            so there is no comparison to show — only the list of what is on file, below. The
+            dimensions worth comparing are decided by reading the implementations, not before.
+          </p>
+        )
+      }
 
       {
         unstudied.length > 0 && (
           <p class="prose" style="font-size:14px">
-            <b>Present but not verified.</b>{" "}
-            {unstudied.length} more {unstudied.length === 1 ? "harness registers" : "harnesses register"} a{" "}
-            {capability.name.toLowerCase()} tool that has not been read from source:{" "}
+            <b>Present but not verified.</b> {documented.length > 0 ? "Another " : ""}
+            {unstudied.length} {plural(unstudied.length, "tool", "tools")}, registered by{" "}
+            {unstudiedOwners} {plural(unstudiedOwners, "harness", "harnesses")},{" "}
+            {plural(unstudied.length, "has", "have")} not been read from source:{" "}
             {unstudied.map((t, i) => (
               <>
                 {i > 0 && ", "}
@@ -241,65 +319,69 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
                 </a>
               </>
             ))}
-            . They are left out of the table below rather than shown as empty rows — a blank cell
-            would claim the behaviour is absent, which is a different thing from not having checked.
+            .{" "}
+            {documented.length > 0 &&
+              "They are left out of the comparison rather than shown as empty rows — a blank cell would claim the behaviour is absent, which is a different thing from not having checked."}
           </p>
         )
       }
 
       {
-        groups.length > 0 && documented.length > 0 && (
+        tables.length > 0 && (
           <>
             <div class="sech" style="padding-top:0">
               <h2>Full comparison</h2>
               <div class="rule" />
               <span class="note">every cell links to where it was read</span>
             </div>
-            <div class="scroller matrix">
-              <table class="data">
-                <thead>
-                  <tr>
-                    <th>Dimension</th>
-                    {documented.map((t) => (
-                      <th>
-                        {t.ownerRef.name}
-                        <span class="sub">{t.exposed_name}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {groups.map((group) => (
-                    <>
-                      <tr class="sec">
-                        <td colspan={documented.length + 1}>{group.group}</td>
-                      </tr>
-                      {group.keys.map((k) => (
-                        <tr id={k.key}>
-                          <td class="nm wrap" title={k.description}>
-                            {k.label}
-                            {k.class === "invariant" && (
-                              <span class="badge" style="margin-left:6px">
-                                invariant
-                              </span>
-                            )}
-                          </td>
-                          {documented.map((t) => (
-                            <td>
-                              <ObservationValue
-                                keyDef={k}
-                                observation={t.observations.find((o) => o.key === k.key)}
-                                fallbackSource={t.source}
-                              />
-                            </td>
-                          ))}
-                        </tr>
+            {tables.map((table) => (
+              <div class="scroller matrix">
+                <table class="data">
+                  {table.label && <caption>{table.label}</caption>}
+                  <thead>
+                    <tr>
+                      <th>Dimension</th>
+                      {table.tools.map((t) => (
+                        <th>
+                          {t.ownerRef.name}
+                          <span class="sub">{t.exposed_name}</span>
+                        </th>
                       ))}
-                    </>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {table.groups.map((group) => (
+                      <>
+                        <tr class="sec">
+                          <td colspan={table.tools.length + 1}>{group.group}</td>
+                        </tr>
+                        {group.keys.map(({ k, anchor }) => (
+                          <tr id={anchor}>
+                            <td class="nm wrap" title={k.description}>
+                              {k.label}
+                              {k.class === "invariant" && (
+                                <span class="badge" style="margin-left:6px">
+                                  invariant
+                                </span>
+                              )}
+                            </td>
+                            {table.tools.map((t) => (
+                              <td>
+                                <ObservationValue
+                                  keyDef={k}
+                                  observation={t.observations.find((o) => o.key === k.key)}
+                                  fallbackSource={t.source}
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
             <p class="prose" style="font-size:13.5px;color:var(--mute)">
               Rows marked <span class="badge">invariant</span> are things every implementation should
               hold to, so they render as pass/fail. Everything else is a design choice: differing is

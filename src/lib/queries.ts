@@ -136,9 +136,20 @@ export function divergences(db: Db, tool: ToolRecord): Divergence[] {
 }
 
 /** Groups a capability's observation keys into the sections the comparison
- *  table renders. Order comes from the registry, never from the template. */
-export function groupedKeys(db: Db, capabilityId: string): { group: string; keys: ObservationKey[] }[] {
-  const keys = db.keysForCapability(capabilityId);
+ *  table renders. Order comes from the registry, never from the template.
+ *
+ *  `appliesTo` narrows to one half of a two-job capability: passing "content"
+ *  keeps the keys marked `content` and the ones marked `both`, and drops the
+ *  `name`-only ones. Omitting it keeps everything, which is what a single-job
+ *  capability like read wants. */
+export function groupedKeys(
+  db: Db,
+  capabilityId: string,
+  appliesTo?: "name" | "content",
+): { group: string; keys: ObservationKey[] }[] {
+  const keys = db
+    .keysForCapability(capabilityId)
+    .filter((k) => !appliesTo || k.applies_to === "both" || k.applies_to === appliesTo);
   const groups: { group: string; keys: ObservationKey[] }[] = [];
   for (const key of keys) {
     let g = groups.find((x) => x.group === key.group);

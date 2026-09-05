@@ -71,6 +71,46 @@ export function checkIntegrity(db: Db = loadDb()): Issue[] {
     if (key.type === "enum" && (!key.values || key.values.length === 0)) {
       warn(`observation-keys.yaml#${key.key}`, `enum key declares no values`);
     }
+    if (key.applies_to !== "both" && !db.capability(key.capability ?? "")?.split) {
+      err(
+        `observation-keys.yaml#${key.key}`,
+        `applies_to "${key.applies_to}" but capability "${key.capability ?? "(none)"}" declares no split, so the key would never render`,
+      );
+    }
+  }
+
+  /* -- capability split ----------------------------------------------------
+        The split decides which comparison table a tool lands in, so its key
+        has to exist and has to belong to the capability doing the splitting;
+        otherwise every tool falls through and the page silently loses its
+        comparison entirely. --------------------------------------------- */
+  for (const cap of db.capabilities) {
+    if (!cap.split) continue;
+    const where = `capabilities.yaml#${cap.id}`;
+    const key = db.observationKey(cap.split.key);
+    if (!key) {
+      err(where, `split key "${cap.split.key}" is not registered in observation-keys.yaml`);
+      continue;
+    }
+    if (key.capability !== cap.id) {
+      err(where, `split key "${cap.split.key}" belongs to capability "${key.capability ?? "(none)"}"`);
+    }
+    if (key.applies_to !== "both") {
+      err(where, `split key "${cap.split.key}" must apply to both parts; it decides which part a tool is in`);
+    }
+    if (key.type === "enum" && key.values) {
+      const matched = new Set(cap.split.parts.flatMap((p) => p.match));
+      for (const v of key.values) {
+        if (!matched.has(v)) {
+          warn(where, `split key value "${v}" is matched by no part, so such a tool would be in no table`);
+        }
+      }
+      for (const v of matched) {
+        if (!key.values.includes(v)) {
+          err(where, `split matches "${v}", which is not a declared value of "${cap.split.key}"`);
+        }
+      }
+    }
   }
 
   const checkObservations = (
