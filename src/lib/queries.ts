@@ -166,3 +166,46 @@ export function invariantHolds(key: ObservationKey, observation?: Observation): 
   if (!observation || observation.status !== "ok") return null;
   return String(observation.value) === key.holds_when;
 }
+
+export interface PeerContext {
+  /** Implementations recording this tool's value, this tool included. 0 when
+   *  this tool recorded nothing. */
+  agree: number;
+  /** Implementations that recorded any value. The denominator for "N of M". */
+  answered: number;
+  /** Implementations that looked and could not tell. Never folded into
+   *  `answered` — not knowing is a different claim from not doing. */
+  unverified: number;
+  /** What the others said instead, most common first. */
+  others: { value: string; count: number }[];
+  /** This tool is the only one recording its value. */
+  alone: boolean;
+}
+
+/**
+ * How every implementation of the capability answered the same question. A
+ * value on its own is a fact sheet; a value next to what the others chose is a
+ * comparison, which is the only thing here a link list could not do.
+ *
+ * Counts are inclusive of the tool being viewed. That matters for more than
+ * arithmetic: the launch post and the homepage cards say "six of nine", and a
+ * tool page quietly saying "five of eight others" about the same fact would
+ * look like a contradiction to anyone reading both.
+ *
+ * Returns null when nobody answered — "0 of 0" is noise dressed as a finding.
+ */
+export function peerContext(
+  db: Db,
+  capabilityId: string,
+  key: string,
+  observation?: Observation,
+): PeerContext | null {
+  const t = tally(db, capabilityId, key);
+  if (t.answered === 0) return null;
+
+  const mine = observation?.status === "ok" ? String(observation.value) : null;
+  const agree = mine === null ? 0 : (t.values.find((v) => v.value === mine)?.count ?? 0);
+  const others = t.values.filter((v) => v.value !== mine).map(({ value, count }) => ({ value, count }));
+
+  return { agree, answered: t.answered, unverified: t.unverified, others, alone: agree === 1 };
+}

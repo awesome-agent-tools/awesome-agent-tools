@@ -1,0 +1,83 @@
+---
+import type { Observation, ObservationKey } from "../lib/schema";
+import type { PeerContext } from "../lib/queries";
+
+interface Props {
+  keyDef: ObservationKey;
+  observation?: Observation;
+  context: PeerContext | null;
+  /** Also name the values the others chose. On by default; the headline block
+   *  turns it off, where the count is the point and the alternatives are not. */
+  detail?: boolean;
+}
+
+const { keyDef, observation, context, detail = true } = Astro.props;
+
+// Two questions, and they are not the same one. For an invariant the reader
+// wants to know how many implementations hold the contract — a fact about the
+// field, true no matter what this tool does. For a design choice they want to
+// know how lonely this tool's choice is. Asking "how many agree with this tool"
+// on an invariant it fails would report the size of the broken cohort as if it
+// were the healthy one.
+const isInvariant = keyDef.class === "invariant" && keyDef.type === "boolean";
+
+// `divergence: false` in the registry means a key where being different is not
+// a finding — every read tool's name differs from every other one's, so
+// "only one of 9" would be noise dressed up as a result. The registry already
+// makes that call for the divergence block; honour it here too.
+const comparable = keyDef.divergence !== false;
+
+let phrase: string | null = null;
+if (context && comparable) {
+  if (isInvariant) {
+    const mine = observation?.status === "ok" ? String(observation.value) : null;
+    const holds =
+      (mine === keyDef.holds_when ? context.agree : 0) +
+      context.others.filter((o) => o.value === keyDef.holds_when).reduce((n, o) => n + o.count, 0);
+    phrase =
+      holds === context.answered
+        ? `all ${context.answered} hold`
+        : `${holds} of ${context.answered} hold`;
+  } else if (context.agree === 0) {
+    // Nothing recorded here, but the question is answerable — worth saying, so
+    // the blank reads as a gap in our research rather than a gap in the tool.
+    phrase = `${context.answered} others recorded`;
+  } else if (context.alone) {
+    phrase = `only one of ${context.answered}`;
+  } else if (context.agree === context.answered) {
+    phrase = `all ${context.answered} agree`;
+  } else {
+    phrase = `like ${context.agree} of ${context.answered}`;
+  }
+}
+
+const alts = context?.others.slice(0, 2) ?? [];
+const more = (context?.others.length ?? 0) - alts.length;
+---
+
+{
+  phrase && (
+    <span class="peer">
+      <span class="n">{phrase}</span>
+      {detail && alts.length > 0 && (
+        <span class="alt">
+          {alts.map((o, i) => (
+            <>
+              {i > 0 && " · "}
+              {o.value} ×{o.count}
+            </>
+          ))}
+          {more > 0 && ` +${more}`}
+        </span>
+      )}
+      {/* Unverified is carried through rather than averaged away: a key where
+          six implementations were checked and four were unreadable is a
+          different state from one where only two were ever looked at. */}
+      {detail && context && context.unverified > 0 && (
+        <span class="alt" title="Implementations where this could not be verified from source">
+          {context.unverified}&nbsp;unverified
+        </span>
+      )}
+    </span>
+  )
+}

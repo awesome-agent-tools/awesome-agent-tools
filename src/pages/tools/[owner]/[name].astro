@@ -3,8 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import Base from "../../../layouts/Base.astro";
 import ObservationValue from "../../../components/ObservationValue.astro";
+import PeerContext from "../../../components/PeerContext.astro";
 import { loadDb } from "../../../lib/db";
-import { displayValue, divergences, groupedKeys } from "../../../lib/queries";
+import { displayValue, divergences, groupedKeys, invariantHolds, peerContext } from "../../../lib/queries";
 
 export async function getStaticPaths() {
   const db = loadDb();
@@ -18,7 +19,6 @@ const { toolId } = Astro.props;
 const db = loadDb();
 const tool = db.tool(toolId)!;
 
-const diverges = divergences(db, tool);
 const measurements = db.measurementsForSubject("tool", tool.id);
 const siblings = db.toolsByOwner(tool.owner.type, tool.owner.id).filter((t) => t.id !== tool.id);
 
@@ -30,13 +30,74 @@ if (tool.schema_file) {
   if (fs.existsSync(p)) schemaText = fs.readFileSync(p, "utf8");
 }
 
+const observationFor = (key: string) => tool.observations.find((o) => o.key === key);
+
+/**
+ * The top of the page. `headline: true` in data/observation-keys.yaml already
+ * marks the facts that clear all four filters in product.md §5 — changes a
+ * decision, not derivable from cheap signals, invisible to the user, one number
+ * or sentence. Reading that field here is what keeps the first screen from
+ * weighing a line-number format the same as a lost edit.
+ */
+const headline = tool.capabilities.flatMap((c) =>
+  db
+    .keysForCapability(c.id)
+    .filter((k) => k.headline && observationFor(k.key))
+    .map((k) => ({
+      key: k,
+      capability: c.id,
+      observation: observationFor(k.key)!,
+      context: peerContext(db, c.id, k.key, observationFor(k.key)),
+    })),
+);
+
+// The contract verdict, which is the one place this site allows itself a
+// pass/fail. Unverified invariants are counted apart rather than assumed to
+// hold — an unchecked contract is not a kept one.
+const invariants = tool.capabilities.flatMap((c) =>
+  db
+    .keysForCapability(c.id)
+    .filter((k) => k.class === "invariant")
+    .map((k) => invariantHolds(k, observationFor(k.key))),
+);
+const held = invariants.filter((v) => v === true).length;
+const failed = invariants.filter((v) => v === false).length;
+const unchecked = invariants.filter((v) => v === null).length;
+
+// Stated in full rather than left to arithmetic: "1 of 3 hold · 1 fails" makes
+// the reader work out that the third was never checked, and an unchecked
+// contract is the state this site most often has to defend as its own claim.
+const verdict =
+  invariants.length === 0
+    ? null
+    : failed === 0 && unchecked === 0
+      ? `${held} invariants · all hold`
+      : [
+          `${held} of ${invariants.length} invariants hold`,
+          failed > 0 ? `${failed} fails` : null,
+          unchecked > 0 ? `${unchecked} unverified` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+// Anything already stated above is dropped here rather than repeated. For
+// claude-code/read that removes the staleness check, whose rarity the headline
+// row already carries.
+const diverges = divergences(db, tool).filter((d) => !headline.some((h) => h.key.key === d.key.key));
+
 const capabilityGroups = tool.capabilities.map((c) => ({
   capability: db.capability(c.id)!,
   role: c.role,
-  groups: groupedKeys(db, c.id).map((g) => ({
-    ...g,
-    keys: g.keys.filter((k) => tool.observations.some((o) => o.key === k.key)),
-  })).filter((g) => g.keys.length > 0),
+  groups: groupedKeys(db, c.id)
+    .map((g) => {
+      const keys = g.keys.filter((k) => observationFor(k.key));
+      return {
+        group: g.group,
+        keys,
+        recorded: keys.filter((k) => observationFor(k.key)!.status === "ok").length,
+      };
+    })
+    .filter((g) => g.keys.length > 0),
 }));
 
 const fmt = (d: Date) => d.toLocaleDateString("en-CA");
@@ -72,6 +133,47 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
       </div>
 
       {
+        headline.length > 0 && (
+          <div class="facts">
+            <div class="hd">
+              <span class="l">What matters here</span>
+              {verdict && <span class="v">{verdict}</span>}
+            </div>
+            <ul>
+              {headline.map((h) => (
+                <li>
+                  <span class="k">
+                    <a href={`#${h.key.key}`}>{h.key.short ?? h.key.label}</a>
+                    {h.key.class === "invariant" && <span class="badge">invariant</span>}
+                  </span>
+                  <span class="mine">
+                    <ObservationValue
+                      keyDef={h.key}
+                      observation={h.observation}
+                      fallbackSource={tool.source}
+                    />
+                  </span>
+                  <span class="rest">
+                    <PeerContext
+                      keyDef={h.key}
+                      observation={h.observation}
+                      context={h.context}
+                      detail={false}
+                    />
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p class="prose note">
+              The facts the registry marks decision-changing, with how the other
+              implementations answered. An invariant may be shown as pass/fail; a design
+              choice never is, however unusual it looks.
+            </p>
+          </div>
+        )
+      }
+
+      {
         diverges.length > 0 && (
           <div class="diverge">
             <div class="l" style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)">
@@ -81,7 +183,7 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
               {diverges.map((d) => (
                 <li>
                   <span class="k">
-                    {d.key.label}
+                    <a href={`#${d.key.key}`}>{d.key.label}</a>
                     {d.key.class === "invariant" && (
                       <span class="badge" style="margin-left:6px">
                         invariant
@@ -112,27 +214,31 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
       }
       {tool.notes && <p class="prose">{tool.notes}</p>}
 
+      {/* Both blocks render whether or not the text exists. product.md calls
+          these data in their own right, and a section that silently disappears
+          when unrecorded tells the reader the tool has no description rather
+          than that nobody has captured it yet. */}
+      <div class="sech" style="padding-top:0">
+        <h2>Description, as the model sees it</h2>
+        <div class="rule"></div>
+      </div>
       {
-        tool.description_text && (
-          <>
-            <div class="sech" style="padding-top:0">
-              <h2>Description, as the model sees it</h2>
-              <div class="rule" />
-            </div>
-            <div class="raw">{tool.description_text}</div>
-          </>
+        tool.description_text ? (
+          <div class="raw">{tool.description_text}</div>
+        ) : (
+          <p class="gap">Not recorded yet — the verbatim description has not been captured for this tool.</p>
         )
       }
 
+      <div class="sech" style="padding-top:0">
+        <h2>Registered schema</h2>
+        <div class="rule"></div>
+      </div>
       {
-        schemaText && (
-          <>
-            <div class="sech" style="padding-top:0">
-              <h2>Registered schema</h2>
-              <div class="rule" />
-            </div>
-            <div class="raw">{schemaText}</div>
-          </>
+        schemaText ? (
+          <div class="raw">{schemaText}</div>
+        ) : (
+          <p class="gap">Not recorded yet — the schema as registered has not been captured for this tool.</p>
         )
       }
 
@@ -147,17 +253,31 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
               </div>
               <div class="scroller">
                 <table class="data">
+                  <thead>
+                    <tr>
+                      <th>Fact</th>
+                      <th>This tool</th>
+                      <th>Across all implementations</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {groups.map((group) => (
                       <>
                         <tr class="sec">
                           <td colspan={2}>{group.group}</td>
+                          <td class="cnt">
+                            {group.recorded} of {group.keys.length} recorded
+                          </td>
                         </tr>
                         {group.keys.map((k) => {
-                          const o = tool.observations.find((x) => x.key === k.key);
+                          const o = observationFor(k.key);
+                          // Unverified and absent rows stay — dropping them
+                          // would claim the behaviour is not there — but they
+                          // recede so the recorded facts read first.
+                          const thin = !o || o.status !== "ok";
                           return (
-                            <tr id={k.key}>
-                              <td class="nm wrap" style="width:36%" title={k.description}>
+                            <tr id={k.key} class={thin ? "thin" : undefined}>
+                              <td class="nm wrap" style="width:32%" title={k.description}>
                                 {k.label}
                                 {k.class === "invariant" && (
                                   <span class="badge" style="margin-left:6px">
@@ -165,9 +285,16 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
                                   </span>
                                 )}
                               </td>
-                              <td class="wrap">
+                              <td class="wrap" style="width:30%">
                                 <ObservationValue keyDef={k} observation={o} fallbackSource={tool.source} />
                                 {o?.note && <div class="dim" style="font-size:12.5px;color:var(--mute);margin-top:3px">{o.note}</div>}
+                              </td>
+                              <td class="wrap peercell">
+                                <PeerContext
+                                  keyDef={k}
+                                  observation={o}
+                                  context={peerContext(db, capability.id, k.key, o)}
+                                />
                               </td>
                             </tr>
                           );
@@ -225,11 +352,18 @@ const fmt = (d: Date) => d.toLocaleDateString("en-CA");
             <div class="sech" style="padding-top:0">
               <h2>Other tools in {tool.ownerRef.name}</h2>
               <div class="rule" />
+              <span class="note">names verbatim, as registered</span>
             </div>
-            <div class="chips" style="justify-content:flex-start;margin-bottom:46px">
+            <div class="toolgrid" style="margin-bottom:46px">
               {siblings.map((s) => (
-                <a href={s.href} class="mono">
-                  {s.exposed_name}
+                <a href={s.href}>
+                  <span class="tn">{s.exposed_name}</span>
+                  {s.capabilities.length > 0 && (
+                    <span class="tc">
+                      {db.capability(s.capabilities[0].id)?.name}
+                      {s.capabilities.length > 1 && ` +${s.capabilities.length - 1}`}
+                    </span>
+                  )}
                 </a>
               ))}
             </div>

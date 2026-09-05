@@ -877,6 +877,23 @@ table.data tr.sec td {
   padding: 18px 12px 6px 0;
   border-bottom: 1px solid var(--line);
 }
+table.data tr.sec td.cnt {
+  text-align: right;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-family: var(--mono);
+  color: var(--ghost);
+}
+/* An unrecorded row keeps its place — removing it would assert the behaviour is
+   absent — but it stops competing with the rows that carry a fact. */
+table.data tr.thin td.nm {
+  font-weight: 400;
+  color: var(--faint);
+}
+table.data td.peercell {
+  min-width: 170px;
+}
 table.data tr:target td {
   background: var(--panel);
 }
@@ -1050,6 +1067,29 @@ table.data.cov td.cmp b {
   color: var(--ink);
 }
 
+/* Three other templates ask for this class and it had no rules at all, so their
+   tool names ran together into one unreadable string. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+}
+.chips a {
+  display: inline-block;
+  font-size: 12.5px;
+  color: var(--body);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 4px 9px;
+  background: var(--bg);
+  white-space: nowrap;
+}
+.chips a:hover {
+  color: var(--ink);
+  border-color: var(--ghost);
+}
+
 .toolgrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -1217,6 +1257,12 @@ a.src:hover {
   padding-top: 19px;
   margin-bottom: 46px;
 }
+/* Following the headline facts it is the second block, not a second opening.
+   Two 2px rules stacked read as two front doors. */
+.facts + .diverge {
+  border-top-width: 1px;
+  border-top-color: var(--line);
+}
 .diverge ul {
   list-style: none;
   padding: 0;
@@ -1245,6 +1291,115 @@ a.src:hover {
   color: var(--faint);
   font-family: var(--mono);
   font-size: 12px;
+}
+
+/* headline facts — the first screen of a tool page. Same geometry as .diverge
+   on purpose: they are the same kind of claim, one derived from the registry
+   and one derived from the peers, and giving them two visual languages would
+   imply a difference in authority that is not there. */
+.facts {
+  border-top: 2px solid var(--ink);
+  padding-top: 19px;
+  margin-bottom: 46px;
+}
+.facts .hd {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.facts .hd .l {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+/* The contract verdict. The one number on this site allowed to read as a
+   score, and only because an invariant is defined as something every
+   implementation should hold. */
+.facts .hd .v {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 550;
+}
+.facts ul {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+}
+.facts li {
+  display: flex;
+  gap: 18px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-top: 1px solid var(--line2);
+  font-size: 14.5px;
+  flex-wrap: wrap;
+}
+.facts li .k {
+  color: var(--mute);
+  flex: 1;
+  min-width: 160px;
+}
+.facts li .k a {
+  color: inherit;
+}
+.facts li .k a:hover {
+  color: var(--ink);
+}
+.facts li .k .badge {
+  margin-left: 6px;
+}
+.facts li .mine {
+  font-weight: 600;
+  font-size: 13px;
+  min-width: 96px;
+}
+.facts li .rest {
+  min-width: 120px;
+  text-align: right;
+}
+.facts .note {
+  font-size: 13px;
+  color: var(--mute);
+  margin-top: 14px;
+  max-width: 34em;
+}
+
+/* peer context — what everyone else answered to the same question */
+.peer {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--faint);
+}
+.peer .n {
+  color: var(--mute);
+}
+/* Long tail: nobody reads these, but principle 2 is that they have to be
+   checkable by the one person who does. --ghost on --bg is about 2:1, which is
+   decoration rather than text. */
+.peer .alt {
+  display: block;
+  color: var(--faint);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.facts .peer {
+  font-size: 12px;
+}
+
+/* a section the data has not reached yet. Said out loud rather than rendered as
+   an absent block, because a missing section reads as "this tool has no
+   description" when it means "nobody has captured it". */
+.gap {
+  font-size: 13.5px;
+  color: var(--faint);
+  border-left: 2px solid var(--line);
+  padding-left: 14px;
+  margin: 0 0 46px;
+  max-width: 34em;
 }
 
 /* raw schema / description blocks — the text itself is data, so show it verbatim */
