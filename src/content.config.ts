@@ -11,6 +11,19 @@ import { glob } from "astro/loaders";
  * itself by half-updating.
  */
 
+/**
+ * A figure the build computes from `data/` rather than one typed in here.
+ * Shared by `headline` and `kpi` because both make the same promise: the number
+ * shown is the number the tables below it would produce. Resolved by
+ * `deriveFigure` in src/lib/queries.ts.
+ */
+const derived = z.discriminatedUnion("as", [
+  // "6/9" — how many implementations recorded this value.
+  z.object({ as: z.literal("ratio"), key: z.string(), counts: z.string() }),
+  // "4" — how many distinct values were recorded.
+  z.object({ as: z.literal("distinct"), key: z.string() }),
+]);
+
 const capabilities = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./content/capabilities" }),
   schema: z.object({
@@ -29,6 +42,30 @@ const capabilities = defineCollection({
       .array(z.object({ situation: z.string(), then: z.string(), href: z.string().optional() }))
       .default([]),
     /**
+     * The single finding this capability's row carries on /capabilities.
+     * Optional, and most capabilities will not have one: without it the index
+     * falls back to what it can derive structurally — how many harnesses ship a
+     * tool, how much of it has been read from source. That fallback is the
+     * common path, not a degraded one.
+     *
+     * Deliberately not "the first kpi". Which figure belongs at the top of the
+     * page and which one summarises the capability from outside are different
+     * editorial questions: read's leading kpi is its line-number formats, which
+     * its own prose files under the long tail.
+     */
+    headline: z
+      .object({
+        value: z.string().optional(),
+        derive: derived.optional(),
+        /** Reads directly after the figure, so it starts mid-sentence:
+         *  "6/9 · will let an agent overwrite a file that changed…" */
+        text: z.string(),
+      })
+      .refine((h) => Boolean(h.value) !== Boolean(h.derive), {
+        message: "a headline needs exactly one of value or derive",
+      })
+      .optional(),
+    /**
      * Numbers worth pulling to the top of the page. Prefer `derive` over a
      * literal `value`: a capability page is maintained, not a snapshot, so a
      * hand-typed figure here goes stale the moment the database moves and the
@@ -40,14 +77,7 @@ const capabilities = defineCollection({
         z
           .object({
             value: z.string().optional(),
-            derive: z
-              .discriminatedUnion("as", [
-                // "6/9" — how many implementations recorded this value.
-                z.object({ as: z.literal("ratio"), key: z.string(), counts: z.string() }),
-                // "4" — how many distinct values were recorded.
-                z.object({ as: z.literal("distinct"), key: z.string() }),
-              ])
-              .optional(),
+            derive: derived.optional(),
             label: z.string(),
             sub: z.string().optional(),
           })

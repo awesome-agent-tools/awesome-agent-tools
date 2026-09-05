@@ -67,6 +67,28 @@ export function tally(db: Db, capabilityId: string, key: string): Tally {
   };
 }
 
+/**
+ * A figure computed from the database rather than typed into a content file.
+ * Structural rather than imported from the content schema: this module stays
+ * free of `astro:` imports so `scripts/check.ts` can use it without booting
+ * Astro, same reason as db.ts.
+ */
+export type Derivation =
+  | { as: "ratio"; key: string; counts: string }
+  | { as: "distinct"; key: string };
+
+/**
+ * Resolves a `derive:` from a capability's front matter against the same rows
+ * the page's tables render, so a headline figure cannot drift away from the
+ * comparison it summarises. Preferred over a literal everywhere on a capability
+ * page — a hand-typed number goes stale the moment the database moves.
+ */
+export function deriveFigure(db: Db, capabilityId: string, derive: Derivation): string {
+  const t = tally(db, capabilityId, derive.key);
+  if (derive.as === "distinct") return String(t.values.length);
+  return `${t.values.find((v) => v.value === derive.counts)?.count ?? 0}/${t.answered}`;
+}
+
 export interface Divergence {
   key: ObservationKey;
   mine: string;

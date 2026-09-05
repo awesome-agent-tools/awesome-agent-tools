@@ -1,63 +1,147 @@
 ---
+import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import { loadDb } from "../lib/db";
+import { deriveFigure } from "../lib/queries";
 
 const db = loadDb();
+const entries = await getCollection("capabilities");
+
+/**
+ * The index's own job is the one comparison no capability page can make: how
+ * far each capability reaches across the harnesses on file. Read is thirteen
+ * deep, browser is three, and that shape is the reason to have this page at all
+ * rather than a list of links.
+ *
+ * Everything below is derived. A capability whose observations have not been
+ * collected yet says so in words — rendering it as a `0` in a numeric column
+ * scores the tools for work we have not done, which is the same mistake as
+ * letting a blank cell stand for "absent".
+ */
+const matrix = db.coverageMatrix();
+const harnesses = matrix.agents.length;
+
 const rows = db.capabilities.map((capability) => {
   const tools = db.toolsByCapability(capability.id);
   const keys = db.keysForCapability(capability.id);
   const studied = tools.filter((t) =>
     t.observations.some((o) => db.observationKey(o.key)?.capability === capability.id),
   );
-  return { capability, tools, keys, studied };
+
+  const cells = matrix.rows.find((r) => r.capability.id === capability.id)!.cells;
+  const dedicated = cells.filter((c) => c === "full").length;
+  const viaOther = cells.filter((c) => c === "partial").length;
+
+  // Agent order, held identical across all six rows, because the cells carry
+  // product marks rather than anonymous squares. That is what makes the column
+  // a column: Hermes sits in the same position on every row, so the page reads
+  // down as well as across — which harness ships a browser but no memory. An
+  // anonymous strip had to be sorted to avoid implying an identity the reader
+  // could not recover; a mark recovers it, so sorting would only destroy the
+  // alignment that makes six rows comparable.
+  const marks = matrix.agents.map((agent, i) => ({ agent, cell: cells[i] }));
+
+  // A declared benchmark with no runs behind it is an intention, not a result.
+  // Saying which one it is keeps the roadmap visible instead of implying the
+  // numbers already exist.
+  const benchmarks = db.benchmarks.filter((b) => b.capability === capability.id);
+  const measured = benchmarks.some((b) => db.runsForBenchmark(b.id).length > 0);
+
+  const head = entries.find((e) => e.id === capability.id)?.data.headline;
+  const headline = head && {
+    figure: head.derive ? deriveFigure(db, capability.id, head.derive) : head.value!,
+    text: head.text,
+  };
+
+  return { capability, tools, keys, studied, marks, dedicated, viaOther, benchmarks, measured, headline };
 });
+
+// The tools the matrix records but does not promote — todo lists, subagent
+// spawning, approval flows. Counted rather than asserted, so the claim about
+// what is deliberately left out cannot drift from what is actually on file.
+const uncategorised = db.tools.filter((t) => t.capabilities.length === 0).length;
 ---
 
 <Base
   title="Capabilities — awesome-agent-tools"
-  description="Each capability is one comparison page. Six of them, deliberately."
+  description="One comparison page per thing worth comparing, and how far each one reaches across the harnesses on file."
   section="capabilities"
 >
   <div class="bd">
     <div class="cap">
       <div class="eyebrow">Capabilities</div>
-      <h1>Six comparisons, one per thing worth comparing</h1>
+      <h1>{db.capabilities.length} comparisons, one per thing worth comparing</h1>
 
       <p class="prose">
-        A capability here is the unit of a comparison page, not a slot in a taxonomy. The test for
-        adding one is whether you can write the question its page answers. The tool matrix records
-        plenty of finer-grained functions — todo lists, subagent spawning, approval flows — and those
-        stay ordinary tools until there is a comparison worth reading.
+        Each of these is one page answering one question. Reading files and running shell commands
+        are universal, so what separates the implementations there stays invisible until it costs
+        you something — an indexing base, a missing staleness check. A browser or a memory store is
+        a real choice, and far fewer harnesses ship one.
       </p>
 
-      <div class="scroller">
-        <table class="data">
-          <thead>
-            <tr>
-              <th>Capability</th>
-              <th>The question it answers</th>
-              <th class="num">Tools</th>
-              <th class="num">Read from source</th>
-              <th class="num">Dimensions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {
-              rows.map(({ capability, tools, keys, studied }) => (
-                <tr>
-                  <td class="nm">
-                    <a href={`/tools/${capability.id}`}>{capability.name}</a>
-                  </td>
-                  <td class="dim wrap">{capability.question}</td>
-                  <td class="num">{tools.length}</td>
-                  <td class="num">{studied.length}</td>
-                  <td class="num">{keys.length || "—"}</td>
-                </tr>
-              ))
-            }
-          </tbody>
-        </table>
+      <div class="caps">
+        {
+          rows.map((r) => (
+            <a class="capr" href={`/tools/${r.capability.id}`}>
+              <span class="q">
+                <span class="ask">{r.capability.question}</span>
+                {r.headline && (
+                  <span class="find">
+                    <b class="tnum">{r.headline.figure}</b> {r.headline.text}
+                  </span>
+                )}
+                <span class="st">
+                  <b>{r.capability.name}</b>
+                  <span>
+                    {r.tools.length} {r.tools.length === 1 ? "tool" : "tools"}
+                  </span>
+                  {r.studied.length > 0 ? (
+                    <span>{r.studied.length} read from source</span>
+                  ) : (
+                    <span>inventory</span>
+                  )}
+                  {r.keys.length > 0 && <span>{r.keys.length} dimensions</span>}
+                  {r.benchmarks.length > 0 && !r.measured && <span>benchmark declared</span>}
+                </span>
+              </span>
+
+              <span class="cvg">
+                {/* Marks are for recognition, exactly as on the agent pages —
+                    nothing is derived from them and the cell state, not the
+                    artwork, is the claim. An agent with no vendored mark still
+                    occupies its column as a plain swatch, so a missing file
+                    never reads as a missing tool. */}
+                <span class="strip" aria-hidden="true">
+                  {r.marks.map(({ agent, cell }) =>
+                    cell !== "none" && agent.logo ? (
+                      <img class={`mark ${cell}`} src={agent.logo} alt="" title={agent.name} />
+                    ) : (
+                      <i class={cell === "none" ? "" : cell} title={agent.name} />
+                    ),
+                  )}
+                </span>
+                <span class="n tnum">
+                  {r.dedicated + r.viaOther}/{harnesses}
+                  <span class="sr"> harnesses ship a tool for this</span>
+                </span>
+              </span>
+            </a>
+          ))
+        }
       </div>
+
+      <p class="legend">
+        <span>One column per harness, {harnesses} of them, in the same order on every row</span>
+        <span class="faded">faded — reached only through another tool</span>
+        <span><i></i>no tool for it</span>
+      </p>
+
+      <p class="prose">
+        A capability here is the unit of a comparison page, not a slot in a taxonomy: the test for
+        adding one is whether you can write the question its page answers. {uncategorised} of the {db.tools.length}
+        {" "}tools on file carry no capability at all — todo lists, subagent spawning, approval flows.
+        They stay ordinary tools until there is a comparison worth reading.
+      </p>
     </div>
   </div>
 </Base>

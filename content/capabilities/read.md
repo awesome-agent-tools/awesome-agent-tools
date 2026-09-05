@@ -3,6 +3,12 @@
 # harness — so a recommendation would be answering a question no one is asking.
 # Without a pick the verdict block does not render and this page is a reference.
 updated: 2026-09-02
+# The staleness check, not the line-number formats — the prose below files the
+# formats under the long tail, and the index should carry what changes a
+# decision, not what sits highest in `kpi`.
+headline:
+  derive: { as: ratio, key: staleness_check, counts: "false" }
+  text: will let an agent overwrite a file that changed after it was read
 kpi:
   - derive: { as: distinct, key: line_number_format }
     label: line-number formats across the implementations read

@@ -3,7 +3,7 @@ import { getCollection, render } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import ObservationValue from "../../components/ObservationValue.astro";
 import { loadDb } from "../../lib/db";
-import { groupedKeys, tally } from "../../lib/queries";
+import { deriveFigure, groupedKeys } from "../../lib/queries";
 
 export async function getStaticPaths() {
   const db = loadDb();
@@ -92,16 +92,11 @@ const runs = db.benchmarks
 
 // Headline figures are computed from the same rows the table below renders, so
 // the top of the page cannot drift away from the bottom of it.
-const kpis = (entry?.data.kpi ?? []).map((k) => {
-  const derive = k.derive;
-  if (!derive) return { value: k.value!, label: k.label, sub: k.sub };
-  const t = tally(db, capabilityId, derive.key);
-  const value =
-    derive.as === "ratio"
-      ? `${t.values.find((v) => v.value === derive.counts)?.count ?? 0}/${t.answered}`
-      : String(t.values.length);
-  return { value, label: k.label, sub: k.sub };
-});
+const kpis = (entry?.data.kpi ?? []).map((k) => ({
+  value: k.derive ? deriveFigure(db, capabilityId, k.derive) : k.value!,
+  label: k.label,
+  sub: k.sub,
+}));
 
 const updated = entry?.data.updated ?? db.lastUpdated();
 const fmt = (d: Date) => d.toLocaleDateString("en-CA");
