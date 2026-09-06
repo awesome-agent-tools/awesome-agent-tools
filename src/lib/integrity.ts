@@ -111,6 +111,32 @@ export function checkIntegrity(db: Db = loadDb()): Issue[] {
         }
       }
     }
+
+    /* A key scoped to one half of the split is a row in that half's table. If
+       no tool ever lands in that half, the row cannot be filled by anyone —
+       not "unverified", which means we looked, but unfillable, which means
+       there was nothing to look at. That is a registry mistake rather than a
+       research gap, and it is invisible on the page: the table simply does not
+       render and the key silently does nothing. */
+    const documented = db
+      .toolsByCapability(cap.id)
+      .filter((t) => t.observations.some((o) => db.observationKey(o.key)?.capability === cap.id));
+
+    for (const part of cap.split.parts) {
+      const inPart = documented.filter((t) => {
+        const o = t.observations.find((x) => x.key === cap.split!.key);
+        return o?.status === "ok" && part.match.includes(String(o.value));
+      });
+      if (inPart.length > 0) continue;
+
+      const orphaned = db.keysForCapability(cap.id).filter((k) => k.applies_to === part.id);
+      for (const k of orphaned) {
+        warn(
+          `observation-keys.yaml#${k.key}`,
+          `applies_to "${part.id}", but no documented tool in "${cap.id}" is in that half of the split, so the row can never be filled`,
+        );
+      }
+    }
   }
 
   const checkObservations = (
