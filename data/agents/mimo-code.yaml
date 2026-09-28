@@ -8,3 +8,8 @@ adoption: []
 observations: []
 # Mark taken from the MiMo-Code README banner — no square mark is published, so this is a crop of the wordmark, resized to 128px and vendored into public/logos/.
 logo: /logos/mimo-code.png
+stars: 13534
+last_commit: 2026-09-28
+license: MIT
+language: TypeScript
+signals_checked_at: 2026-09-28

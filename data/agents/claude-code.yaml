@@ -9,3 +9,7 @@ adoption: []
 observations: []
 # Mark taken from https://claude.com/apple-touch-icon.png, resized to 128px and vendored into public/logos/.
 logo: /logos/claude-code.png
+stars: 148441
+last_commit: 2026-09-27
+language: TypeScript
+signals_checked_at: 2026-09-28

@@ -9,3 +9,8 @@ adoption: []
 observations: []
 # Mark taken from https://openclaw.ai/apple-touch-icon.png, resized to 128px and vendored into public/logos/.
 logo: /logos/openclaw.png
+stars: 390709
+last_commit: 2026-09-28
+license: NOASSERTION
+language: TypeScript
+signals_checked_at: 2026-09-28

@@ -8,3 +8,8 @@ adoption: []
 observations: []
 # Mark taken from the icon qwen.ai declares in its head, resized to 128px and vendored into public/logos/.
 logo: /logos/qwen-code.png
+stars: 28193
+last_commit: 2026-09-28
+license: Apache-2.0
+language: TypeScript
+signals_checked_at: 2026-09-28
