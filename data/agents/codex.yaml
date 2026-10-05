@@ -8,3 +8,8 @@ adoption: []
 observations: []
 # Mark taken from openai.com's favicon, resized to 128px and vendored into public/logos/.
 logo: /logos/codex.png
+stars: 127908
+last_commit: 2026-10-05
+license: Apache-2.0
+language: Rust
+signals_checked_at: 2026-10-05

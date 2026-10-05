@@ -9,3 +9,8 @@ adoption: []
 observations: []
 # Mark taken from deepseek.com's favicon, resized to 128px and vendored into public/logos/.
 logo: /logos/dsh.png
+stars: 243827
+last_commit: 2026-10-03
+license: MIT
+language: TypeScript
+signals_checked_at: 2026-10-05

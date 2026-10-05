@@ -8,3 +8,8 @@ adoption: []
 observations: []
 # Mark taken from https://opencode.ai/apple-touch-icon.png, resized to 128px and vendored into public/logos/.
 logo: /logos/opencode.png
+stars: 211832
+last_commit: 2026-10-05
+license: MIT
+language: TypeScript
+signals_checked_at: 2026-10-05

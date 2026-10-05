@@ -8,3 +8,8 @@ adoption: []
 observations: []
 # Mark taken from https://www.kimi.com/pwa-192.png, resized to 128px and vendored into public/logos/.
 logo: /logos/kimi-code.png
+stars: 7774
+last_commit: 2026-10-02
+license: MIT
+language: TypeScript
+signals_checked_at: 2026-10-05
