@@ -8,3 +8,8 @@ adoption: []
 observations: []
 # Mark taken from https://openhands.dev/favicon.svg, resized to 128px and vendored into public/logos/.
 logo: /logos/openhands.png
+stars: 1306
+last_commit: 2026-10-26
+license: MIT
+language: Python
+signals_checked_at: 2026-10-26
